@@ -111,7 +111,7 @@ export function Header({ isDashboard = false, userRole }: { isDashboard?: boolea
             <div className="flex flex-col space-y-6 pt-6">
               <Link href="/" className="flex items-center space-x-2" onClick={() => setIsMobileMenuOpen(false)}>
                 <Logo className="h-6 w-6 text-primary" />
-                <span className="font-bold font-headline">Quiziverse</span>
+                <span className="font-bold font-headline">Quizierra</span>
               </Link>
               <NavItems className="flex flex-col items-start space-y-4" />
             </div>
@@ -121,7 +121,7 @@ export function Header({ isDashboard = false, userRole }: { isDashboard?: boolea
         <div className="mr-4 hidden md:flex items-center">
           <Link href="/" className="mr-6 flex items-center space-x-2">
             <Logo className="h-6 w-6 text-primary" />
-            <span className="font-bold font-headline">Quiziverse</span>
+            <span className="font-bold font-headline">Quizierra</span>
           </Link>
           <NavItems className="items-center space-x-6" />
         </div>
