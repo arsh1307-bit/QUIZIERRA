@@ -77,7 +77,7 @@ export default function SignupPage() {
       router.push('/dashboard');
       toast({
         title: 'Account Created',
-        description: "Welcome to Quiziverse!",
+        description: "Welcome to Quizierra!",
       });
     } catch (error: any) {
       console.error(error);
@@ -140,7 +140,7 @@ export default function SignupPage() {
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight">Create an Account</h1>
           <p className="text-muted-foreground">
-            Join Quiziverse to start your journey.
+            Join Quizierra to start your journey.
           </p>
         </div>
         <Form {...form}>
