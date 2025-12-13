@@ -5,7 +5,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
-  title: 'Quiziverse - The Future of Assessment',
+  title: 'Quizierra - The Future of Assessment',
   description: 'A secure, robust, and engaging platform for modern education and professional certification.',
 };
 
