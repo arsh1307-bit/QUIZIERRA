@@ -50,7 +50,7 @@ export type StudentAnswer = {
     questionId: string;
     questionContent: string;
     answer: string | string[];
-    correctAnswer: string | undefined;
+    correctAnswer?: string;
     timeTaken: number; // in seconds
 };
 

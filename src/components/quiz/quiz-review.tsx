@@ -22,7 +22,7 @@ type QuizReviewProps = {
     onReset: () => void;
 };
 
-type QuestionState = GenerateQuizOutput['questions'][0] & { isApproved?: boolean };
+type QuestionState = GenerateQuizOutput['questions'][0] & { isApproved?: boolean; difficulty?: string };
 
 export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
     const { user } = useUser();

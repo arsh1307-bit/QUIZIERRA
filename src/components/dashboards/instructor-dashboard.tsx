@@ -82,7 +82,7 @@ function LiveExamMonitor() {
             {liveExams.map(exam => (
                 <li key={exam.id} className="flex items-center justify-between">
                     <div>
-                        <p className="font-medium">{exam.title}</p>
+                        <p className="font-medium">{exam.quizTitle}</p>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <div className="relative flex h-3 w-3">
                                 <div className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></div>

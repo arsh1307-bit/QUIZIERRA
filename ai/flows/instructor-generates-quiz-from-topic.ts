@@ -80,8 +80,3 @@ const generateQuizFlow = ai.defineFlow(
     return output!;
   }
 );
-
-// We need a UUID library for the fallback.
-// In a real project, you would `npm install uuid @types/uuid`.
-// For this environment, we'll assume it's available.
-declare function uuidv4(): string;

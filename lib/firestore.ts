@@ -1,19 +1,17 @@
 'use server';
 import { getFirestore, doc, setDoc, collection, addDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
-import { generateQuizFromTopic } from '@/ai/flows/instructor-generates-quiz-from-topic';
+import { generateQuiz } from '@/ai/flows/instructor-generates-quiz-from-topic';
 import type { Quiz, Question } from './types';
 import { getAuth } from 'firebase/auth';
 
 export async function createQuizWithAI(topic: string, numQuestions: number, userId: string) {
   const firestore = getFirestore();
-  const quizData = await generateQuizFromTopic({ topic, numQuestions });
+  const quizData = await generateQuiz({ context: topic, numMcq: numQuestions, numText: 0 });
   
   try {
-    const parsedQuiz = JSON.parse(quizData.quiz);
-
     const quizCollectionRef = collection(firestore, 'quizzes');
     const newQuizRef = await addDoc(quizCollectionRef, {
-      title: parsedQuiz.quizTitle,
+      title: quizData.title,
       description: `A quiz about ${topic}`,
       createdBy: userId,
       createdAt: serverTimestamp(),
@@ -23,11 +21,13 @@ export async function createQuizWithAI(topic: string, numQuestions: number, user
     const questionCollectionRef = collection(firestore, 'quizzes', newQuizRef.id, 'questions');
     const questionIds: string[] = [];
 
-    for (const q of parsedQuiz.questions) {
+    for (const q of quizData.questions) {
       const newQuestionRef = await addDoc(questionCollectionRef, {
-        questionText: q.questionText,
+        type: q.type,
+        content: q.content,
         options: q.options,
         correctAnswer: q.correctAnswer,
+        maxScore: q.maxScore,
         quizId: newQuizRef.id,
       });
       questionIds.push(newQuestionRef.id);

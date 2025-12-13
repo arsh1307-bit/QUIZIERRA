@@ -28,6 +28,7 @@ import { useUser } from '@/firebase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, Briefcase, Shield } from 'lucide-react';
 import type { UserRole } from '@/lib/types';
+import React from 'react';
 
 
 const formSchema = z.object({
@@ -35,7 +36,7 @@ const formSchema = z.object({
   password: z.string().min(1, { message: 'Password is required.' }),
 });
 
-const demoUsers: { role: UserRole; icon: JSX.Element; email: string; password: string, displayName: string }[] = [
+const demoUsers: { role: UserRole; icon: React.ReactElement; email: string; password: string, displayName: string }[] = [
   {
     role: 'student',
     icon: <User className="h-5 w-5 text-primary" />,

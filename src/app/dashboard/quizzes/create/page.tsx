@@ -61,7 +61,7 @@ export default function CreateQuizPage() {
                                         <GenerateFromText onQuizGenerated={handleQuizGenerated} />
                                     </TabsContent>
                                     <TabsContent value="manual" className="pt-6">
-                                        <GenerateManual />
+                                        <GenerateManual onQuizGenerated={handleQuizGenerated} />
                                     </TabsContent>
                                 </Tabs>
                             </CardContent>
