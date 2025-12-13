@@ -62,12 +62,12 @@ const useCases = [
 
 const faqs = [
   {
-    question: "Is Quiziverse secure for high-stakes exams?",
+    question: "Is Quizierra secure for high-stakes exams?",
     answer: "Absolutely. We offer advanced, consent-first proctoring, real-time event flagging, and a secure browser environment to ensure the integrity of every exam."
   },
   {
     question: "Can I customize the quizzes?",
-    answer: "Yes, Quiziverse offers a powerful quiz editor that allows you to create custom questions, set time limits, randomize questions, and much more to fit your specific needs."
+    answer: "Yes, Quizierra offers a powerful quiz editor that allows you to create custom questions, set time limits, randomize questions, and much more to fit your specific needs."
   },
   {
     question: "How does the AI hint system work?",
@@ -137,7 +137,7 @@ export default function Home() {
                 The Future of <span className="text-primary">Assessment</span> is Here.
               </motion.h1>
               <motion.p variants={itemVariants} className="mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl">
-                Quiziverse is a secure, robust, and engaging platform for modern education and professional certification.
+                Quizierra is a secure, robust, and engaging platform for modern education and professional certification.
               </motion.p>
               <motion.div variants={itemVariants} className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <Button asChild size="lg" className="font-semibold">
@@ -196,7 +196,7 @@ export default function Home() {
               Built for Modern Learning
             </h2>
             <p className="mt-4 text-lg text-muted-foreground md:text-xl">
-              Quiziverse is more than just a quiz tool—it's a comprehensive assessment platform designed for the digital age. We empower educators and trainers to create secure, engaging, and fair evaluations with ease.
+              Quizierra is more than just a quiz tool—it's a comprehensive assessment platform designed for the digital age. We empower educators and trainers to create secure, engaging, and fair evaluations with ease.
             </p>
             <p className="mt-4 text-lg text-muted-foreground md:text-xl">
               With AI-powered assistance, deterministic autosave, and gamified progress, we've reimagined what online testing can be.
@@ -264,7 +264,7 @@ export default function Home() {
               Versatile for Any Need
             </h2>
             <p className="mx-auto mt-4 max-w-3xl text-lg text-muted-foreground md:text-xl">
-              Quiziverse adapts to your world. Whether for academic exams, professional certifications, or corporate training, our platform delivers.
+              Quizierra adapts to your world. Whether for academic exams, professional certifications, or corporate training, our platform delivers.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -326,7 +326,7 @@ export default function Home() {
             Ready to Revolutionize Your Quizzes?
           </h2>
           <p className="mx-auto mt-4 max-w-3xl text-lg text-muted-foreground md:text-xl">
-            Join the growing number of institutions and companies choosing Quiziverse.
+            Join the growing number of institutions and companies choosing Quizierra.
           </p>
           <Button asChild size="lg" className="mt-8 font-semibold">
             <Link href="/signup">
@@ -338,7 +338,7 @@ export default function Home() {
 
       <footer className="w-full border-t py-6">
         <div className="container mx-auto flex flex-col items-center justify-between px-4 sm:flex-row">
-          <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Quiziverse. All rights reserved.</p>
+          <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Quizierra. All rights reserved.</p>
           <div className="mt-4 flex gap-4 sm:mt-0">
             <Link href="#" className="text-sm text-muted-foreground hover:text-primary">Privacy Policy</Link>
             <Link href="#" className="text-sm text-muted-foreground hover:text-primary">Terms of Service</Link>
