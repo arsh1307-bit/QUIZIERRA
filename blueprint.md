@@ -1,4 +1,4 @@
-# **App Name**: Quiziverse
+# **App Name**: Quizierra
 
 ## Core Features:
 
