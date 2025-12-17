@@ -11,7 +11,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
-import { generateQuiz } from '@/ai/flows/instructor-generates-quiz-from-topic';
 import type { GenerateQuizOutput } from '@/ai/flows/instructor-generates-quiz-from-topic';
 
 const formSchema = z.object({
@@ -82,17 +81,23 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
             throw new Error('Could not extract any text from the file.');
         }
 
-        const aiResult = await generateQuiz({
-            context: textContent,
-            numMcq: values.numMcq,
-            numText: values.numText
+        const r = await fetch('/api/generate-quiz', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ context: textContent, numMcq: values.numMcq, numText: values.numText }),
         });
 
+        if (!r.ok) {
+          const err = await r.text().catch(() => '');
+          throw new Error(err || 'Generation service failed.');
+        }
+
+        const aiResult = await r.json();
         if (aiResult && aiResult.questions && aiResult.questions.length > 0) {
-            toast({ title: 'Quiz Generated!', description: 'Review the questions before saving.' });
-            onQuizGenerated(aiResult);
+          toast({ title: 'Quiz Generated!', description: 'Review the questions before saving.' });
+          onQuizGenerated(aiResult);
         } else {
-            throw new Error('The AI could not generate questions from the provided file. The content might be too short or unclear.');
+          throw new Error('The AI could not generate questions from the provided file. The content might be too short or unclear.');
         }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Generation Failed', description: error.message || 'An unexpected error occurred.' });

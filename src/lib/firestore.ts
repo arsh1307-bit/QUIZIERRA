@@ -1,12 +1,36 @@
-'use server';
+"use server";
 import { getFirestore, doc, setDoc, collection, addDoc, serverTimestamp, getDocs, query, where } from 'firebase/firestore';
-import { generateQuiz } from '@/ai/flows/instructor-generates-quiz-from-topic';
+// Server-side proxy to Python AI service
+const PYTHON_AI_BASE = process.env.PYTHON_AI_BASE || 'http://127.0.0.1:8000';
 import type { Quiz, Question } from './types';
 import { getAuth } from 'firebase/auth';
 
 export async function createQuizWithAI(topic: string, numQuestions: number, userId: string) {
   const firestore = getFirestore();
-  const quizData = await generateQuiz({ context: topic, numMcq: numQuestions, numText: 0 });
+  // Call the Python AI backend to generate the quiz
+  const res = await fetch(`${PYTHON_AI_BASE}/ai/from_text`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: topic, num_questions: numQuestions, use_structured: true }),
+  });
+
+  if (!res.ok) {
+    throw new Error('AI generation service failed');
+  }
+
+  const body = await res.json();
+  // The Python endpoint returns { generated: [...] } — convert to expected shape
+  const quizData = {
+    title: body.title || `Generated Quiz: ${topic}`,
+    questions: (body.generated || []).map((g: any) => ({
+      id: g.id,
+      type: 'mcq',
+      content: g.question || g.stem || '',
+      options: (g.distractors || g.options || []).slice(0,3),
+      correctAnswer: g.answer || g.correct || '',
+      maxScore: 10,
+    })),
+  };
   
   try {
     const quizCollectionRef = collection(firestore, 'quizzes');

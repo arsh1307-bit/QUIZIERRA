@@ -9,3 +9,11 @@ sentence-transformers
 openai-whisper
 whisper
 requests
+
+pdfplumber
+python-multipart
+
+# Added by scan: packages used in Python code but not previously listed
+google-generativeai
+numpy
+pytest

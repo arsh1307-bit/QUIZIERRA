@@ -17,7 +17,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { Loader2, Wand2 } from 'lucide-react';
-import { generateQuiz } from '@/ai/flows/instructor-generates-quiz-from-topic';
 
 const formSchema = z.object({
   context: z.string().min(50, { message: 'Please provide at least 50 characters of context.' }),
@@ -48,13 +47,21 @@ export function GenerateFromText({ onQuizGenerated }: GenerateFromTextProps) {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsGenerating(true);
     try {
-        const result = await generateQuiz(values);
-        if (result.questions && result.questions.length > 0) {
-            toast({ title: 'Quiz Generated!', description: 'Review the questions before saving.' });
-            onQuizGenerated({title: result.title, questions: result.questions});
-        } else {
-            throw new Error('The AI could not generate questions from the provided text.');
-        }
+      const r = await fetch('/api/generate-quiz', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: values.context, numMcq: values.numMcq, numText: values.numText }),
+      });
+      if (!r.ok) throw new Error('Generation service failed.');
+      const json = await r.json();
+      const title = json.title || 'Generated Quiz';
+      const questions = json.questions || [];
+      if (questions && questions.length > 0) {
+        toast({ title: 'Quiz Generated!', description: 'Review the questions before saving.' });
+        onQuizGenerated({ title, questions });
+      } else {
+        throw new Error('The AI could not generate questions from the provided text.');
+      }
     } catch (error: any) {
       toast({
         variant: 'destructive',

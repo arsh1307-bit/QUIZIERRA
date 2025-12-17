@@ -1,11 +1,15 @@
-import {genkit} from 'genkit';
-import {googleAI} from '@genkit-ai/google-genai';
+// Genkit integration disabled for frontend builds. All AI execution
+// should run in the Python backend. This file exports a runtime stub
+// that throws if used in the frontend to prevent accidental bundling
+// of Genkit/LLM code into the React app.
 
-export const ai = genkit({
-  plugins: [
-    googleAI(),
-  ],
-  // Use a stable, generally-available Gemini model for all flows.
-  // Updated from deprecated 1.5 model to a supported 2.5 Flash model.
-  model: 'googleai/gemini-2.5-flash',
-});
+function _disabled() {
+  throw new Error('Genkit AI flows are disabled in the frontend. Use the Python backend endpoints instead.');
+}
+
+export const ai = {
+  defineFlow: _disabled,
+  definePrompt: _disabled,
+  define: _disabled,
+  // provide a minimal object shape to avoid runtime import errors
+};

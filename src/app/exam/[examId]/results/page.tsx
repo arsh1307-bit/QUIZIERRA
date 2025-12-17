@@ -6,7 +6,7 @@ import type { Attempt, GradeSubmissionOutput } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
-import { gradeSubmission } from '@/ai/flows/student-grades-submission';
+// Grade submissions via Python backend proxy
 import { CAR_PARTS } from '@/lib/car-parts';
 import { Loader2, CheckCircle, XCircle, Award, Car } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -60,7 +60,13 @@ export default function ExamResultsPage() {
                         timeTaken: typeof answer.timeTaken === 'number' ? answer.timeTaken : Number(answer.timeTaken ?? 0),
                     }));
 
-                    const result = await gradeSubmission({ answers: normalizedAnswers });
+                    const r = await fetch('/api/grade', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ answers: normalizedAnswers }),
+                    });
+                    if (!r.ok) throw new Error('Grading service failed.');
+                    const result = await r.json();
                     setGradingResult(result);
                     
                     const attemptsCollection = collection(firestore, 'attempts');
@@ -73,16 +79,20 @@ export default function ExamResultsPage() {
                     }).length;
 
                     const nextPart = CAR_PARTS[earnedPartsCount % CAR_PARTS.length];
-                    const partEarned = result.finalScore > (attempt.totalQuestions * 10 * 0.7) ? nextPart : undefined;
+                    const partEarned = result.finalScore > (attempt.totalQuestions * 10 * 0.7) ? nextPart : null;
 
                     if (attemptRef) {
-                        await updateDoc(attemptRef, {
+                        const updateData: any = {
                             status: 'Completed',
                             score: result.finalScore,
                             gradedAnswers: result.gradedAnswers,
-                            partEarned: partEarned,
                             completedAt: new Date().toISOString(),
-                        });
+                        };
+                        // Only add partEarned if it has a value (avoid undefined)
+                        if (partEarned) {
+                            updateData.partEarned = partEarned;
+                        }
+                        await updateDoc(attemptRef, updateData);
                     }
                 } catch (e: any) {
                     setError('Failed to grade submission. Please contact your instructor.');

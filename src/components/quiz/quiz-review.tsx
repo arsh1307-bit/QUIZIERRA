@@ -94,6 +94,17 @@ export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
             // Run difficulty classification before persisting
             const questionsWithDifficulty = await classifyDifficultyForQuestions(questions);
 
+            // Normalize question fields to avoid runtime type errors (e.g., indexOf on non-string)
+            const normalizedQuestions = questionsWithDifficulty.map(q => ({
+                ...q,
+                id: String(q.id),
+                content: String(q.content || ''),
+                maxScore: typeof q.maxScore === 'number' ? q.maxScore : Number(q.maxScore) || 10,
+                options: Array.isArray(q.options) ? q.options.map((o: any) => String(o)) : undefined,
+                correctAnswer: q.correctAnswer != null ? String(q.correctAnswer) : undefined,
+                difficulty: q.difficulty != null ? String(q.difficulty) : undefined,
+            }));
+
             const batch = writeBatch(firestore);
 
             const quizCollectionRef = collection(firestore, 'quizzes');
@@ -101,17 +112,17 @@ export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
 
             const quizData = {
                 id: newQuizDocRef.id,
-                title: title,
+                title: String(title || ''),
                 createdBy: user.uid,
                 createdAt: new Date().toISOString(),
-                questionIds: questionsWithDifficulty.map(q => q.id),
-                description: `A quiz with ${questionsWithDifficulty.length} questions.`,
+                questionIds: normalizedQuestions.map(q => q.id),
+                description: `A quiz with ${normalizedQuestions.length} questions.`,
             };
             batch.set(newQuizDocRef, quizData);
 
             // Correctly reference the subcollection for questions
             const questionsCollectionRef = collection(newQuizDocRef, 'questions');
-            questionsWithDifficulty.forEach(question => {
+            normalizedQuestions.forEach((question) => {
                 const questionDocRef = doc(questionsCollectionRef, question.id);
                 const questionPayload = {
                     id: question.id,
@@ -126,7 +137,16 @@ export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
                 batch.set(questionDocRef, questionPayload);
             });
 
-            await batch.commit();
+            try {
+                await batch.commit();
+            } catch (e) {
+                // Log the normalized payload to help diagnose client-side save errors
+                console.error('Failed to commit batch. Quiz payload:', {
+                    quiz: quizData,
+                    questions: normalizedQuestions,
+                });
+                throw e;
+            }
 
             toast({ title: 'Quiz Saved!', description: `Your new quiz "${title}" has been successfully created.` });
             onReset();
