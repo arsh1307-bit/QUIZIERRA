@@ -1,0 +1,3 @@
+{
+  "/dashboard/proctor/[examId]/page": "app/dashboard/proctor/[examId]/page.js"
+}

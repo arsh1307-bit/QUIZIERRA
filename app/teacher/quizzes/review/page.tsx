@@ -1,192 +1,127 @@
+
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, collection, getDoc, getDocs } from 'firebase/firestore';
-import type { UserProfile, Quiz, Question } from '@/lib/types';
-import { QuizReview } from '@/components/quiz/quiz-review';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
-import type { GenerateQuizOutput } from '@/ai/flows/instructor-generates-quiz-from-topic';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from '@/firebase/config'; // Make sure this path is correct
+import { Quiz, Question } from '@/lib/types';
 
-export default function TeacherQuizReviewPage() {
-    const { user, isUserLoading } = useUser();
-    const firestore = useFirestore();
-    const router = useRouter();
-    const searchParams = useSearchParams();
-    const quizId = searchParams.get('quizId');
-    
-    const [quizData, setQuizData] = useState<GenerateQuizOutput | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+const ReviewAndRefineQuizPage = () => {
+  const searchParams = useSearchParams();
+  const quizId = searchParams.get('quizId');
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-    const userProfileRef = useMemoFirebase(() => {
-        if (!user || !firestore) return null;
-        return doc(firestore, 'users', user.uid);
-    }, [user, firestore]);
+  useEffect(() => {
+    if (!quizId) {
+      setError('Quiz ID is missing.');
+      setLoading(false);
+      return;
+    }
 
-    const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+    const fetchQuizAndQuestions = async () => {
+      try {
+        const quizRef = doc(db, 'quizzes', quizId);
+        const quizSnap = await getDoc(quizRef);
 
-    // Role guard - only teachers can access
-    useEffect(() => {
-        if (!isUserLoading && !isProfileLoading && userProfile) {
-            if (userProfile.role !== 'instructor' && userProfile.role !== 'admin') {
-                router.push('/dashboard');
-            }
+        if (!quizSnap.exists()) {
+          setError('Quiz not found.');
+          setLoading(false);
+          return;
         }
-    }, [userProfile, isUserLoading, isProfileLoading, router]);
 
-    // Load quiz data if quizId provided
-    useEffect(() => {
-        const loadQuiz = async () => {
-            if (!quizId || !firestore) {
-                setIsLoading(false);
-                return;
-            }
+        const quizData = { id: quizSnap.id, ...quizSnap.data() } as Quiz;
+        setQuiz(quizData);
 
-            try {
-                const quizDocRef = doc(firestore, 'quizzes', quizId);
-                const quizDoc = await getDoc(quizDocRef);
-
-                if (!quizDoc.exists()) {
-                    setError('Quiz not found');
-                    setIsLoading(false);
-                    return;
-                }
-
-                const quiz = { id: quizDoc.id, ...quizDoc.data() } as Quiz;
-                
-                // Load questions
-                const questionsSnapshot = await getDocs(
-                    collection(firestore, 'quizzes', quizId, 'questions')
-                );
-                
-                const questions = questionsSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data(),
-                })) as Question[];
-
-                // Convert to GenerateQuizOutput format
-                const output: GenerateQuizOutput = {
-                    title: quiz.title,
-                    questions: questions.map(q => ({
-                        id: q.id,
-                        type: q.type,
-                        content: q.content,
-                        options: q.options,
-                        correctAnswer: q.correctAnswer,
-                        maxScore: q.maxScore,
-                    })),
-                };
-
-                setQuizData(output);
-            } catch (error: any) {
-                setError(error.message || 'Failed to load quiz');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        if (userProfile?.role === 'instructor' || userProfile?.role === 'admin') {
-            loadQuiz();
+        if (quizData.questionIds) {
+          const questionPromises = quizData.questionIds.map(id => getDoc(doc(db, 'questions', id)));
+          const questionSnaps = await Promise.all(questionPromises);
+          const questionData = questionSnaps.map(snap => ({ id: snap.id, ...snap.data() } as Question));
+          setQuestions(questionData);
         }
-    }, [quizId, firestore, userProfile]);
+      } catch (err) {
+        setError('Failed to fetch quiz data.');
+        console.error(err);
+      }
+      setLoading(false);
+    };
 
-    if (isUserLoading || isProfileLoading) {
-        return (
-            <div className="p-8">
-                <Skeleton className="h-10 w-48 mb-8" />
-                <Skeleton className="h-64 w-full" />
-            </div>
-        );
+    fetchQuizAndQuestions();
+  }, [quizId]);
+
+  const handleQuestionChange = (index: number, field: keyof Question, value: any) => {
+    const newQuestions = [...questions];
+    newQuestions[index] = { ...newQuestions[index], [field]: value };
+    setQuestions(newQuestions);
+  };
+
+  const handleSaveAndPublish = async () => {
+    if (!quizId) return;
+
+    try {
+      // Update all questions in Firestore
+      const questionUpdatePromises = questions.map(q => updateDoc(doc(db, 'questions', q.id), { ...q }));
+      await Promise.all(questionUpdatePromises);
+
+      // Update quiz status to 'published'
+      const quizRef = doc(db, 'quizzes', quizId);
+      await updateDoc(quizRef, { status: 'published', approvedBy: 'teacher' });
+
+      alert('Quiz published successfully!');
+    } catch (err) {
+      setError('Failed to publish quiz.');
+      console.error(err);
     }
+  };
 
-    if (!userProfile || (userProfile.role !== 'instructor' && userProfile.role !== 'admin')) {
-        return (
-            <div className="p-8">
-                <Card className="max-w-2xl mx-auto">
-                    <CardContent className="p-8 text-center">
-                        <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
-                        <h2 className="text-xl font-semibold mb-2">Access Denied</h2>
-                        <p className="text-muted-foreground mb-4">
-                            Only teachers and administrators can review quizzes.
-                        </p>
-                        <Button onClick={() => router.push('/dashboard')}>
-                            Back to Dashboard
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error}</div>;
+  if (!quiz) return <div>No quiz found.</div>;
 
-    if (isLoading) {
-        return (
-            <div className="p-8">
-                <Skeleton className="h-10 w-48 mb-8" />
-                <Skeleton className="h-64 w-full" />
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="p-8">
-                <Card className="max-w-2xl mx-auto">
-                    <CardContent className="p-8 text-center">
-                        <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-4" />
-                        <h2 className="text-xl font-semibold mb-2">Error</h2>
-                        <p className="text-muted-foreground mb-4">{error}</p>
-                        <Button onClick={() => router.push('/dashboard')}>
-                            Back to Dashboard
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
-
-    if (!quizId || !quizData) {
-        return (
-            <div className="p-8">
-                <Card className="max-w-2xl mx-auto">
-                    <CardHeader>
-                        <CardTitle>Quiz Review</CardTitle>
-                        <CardDescription>
-                            Select a quiz to review from your dashboard, or provide a quizId in the URL.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Button onClick={() => router.push('/dashboard')}>
-                            <ArrowLeft className="h-4 w-4 mr-2" />
-                            Back to Dashboard
-                        </Button>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
-
-    return (
-        <div className="p-4 sm:p-8">
-            <div className="mb-4">
-                <Button variant="ghost" onClick={() => router.push('/dashboard')}>
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to Dashboard
-                </Button>
-            </div>
-            <QuizReview
-                quizData={quizData}
-                onBack={() => router.push('/dashboard')}
-                onReset={() => {
-                    setQuizData(null);
-                    router.push('/dashboard');
-                }}
-            />
+  return (
+    <div style={{ padding: '20px' }}>
+      <h1>Review & Refine Quiz: {quiz.title}</h1>
+      {questions.map((q, index) => (
+        <div key={q.id} style={{ marginBottom: '20px', border: '1px solid #ccc', padding: '10px' }}>
+          <label>Question:</label>
+          <input
+            type="text"
+            value={q.content}
+            onChange={(e) => handleQuestionChange(index, 'content', e.target.value)}
+            style={{ width: '100%', marginBottom: '10px' }}
+          />
+          <div>
+            {q.options?.map((option, i) => (
+              <div key={i}>
+                <input
+                  type="radio"
+                  name={`question-${q.id}`}
+                  checked={q.correctAnswer === i.toString()}
+                  onChange={() => handleQuestionChange(index, 'correctAnswer', i.toString())}
+                />
+                <input
+                  type="text"
+                  value={option}
+                  onChange={(e) => {
+                    const newOptions = [...(q.options || [])];
+                    newOptions[i] = e.target.value;
+                    handleQuestionChange(index, 'options', newOptions);
+                  }}
+                  style={{ marginLeft: '10px' }}
+                />
+              </div>
+            ))}
+          </div>
         </div>
-    );
-}
+      ))}
+      <button onClick={handleSaveAndPublish} style={{ padding: '10px 20px', background: 'blue', color: 'white', border: 'none', cursor: 'pointer' }}>
+        Save & Publish
+      </button>
+    </div>
+  );
+};
 
+export default ReviewAndRefineQuizPage;

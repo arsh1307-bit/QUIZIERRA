@@ -24,6 +24,9 @@ export type Quiz = {
   questionIds?: string[];
   createdBy: string;
   createdAt: string;
+  status: 'draft' | 'published' | 'archived';
+  adaptive: boolean;
+  approvedBy: 'system' | 'teacher';
 };
 
 export type Question = {
@@ -34,6 +37,7 @@ export type Question = {
   correctAnswer?: string;
   maxScore: number;
   quizId: string;
+  difficulty: 'easy' | 'medium' | 'hard';
 };
 
 
@@ -53,7 +57,6 @@ export type StudentAnswer = {
     questionId: string;
     questionContent: string;
     answer: string | string[];
-    correctAnswer?: string;
     timeTaken: number; // in seconds
 };
 
@@ -225,4 +228,14 @@ export type Feedback = {
     content: string;
     createdAt: string;
     isRead?: boolean;
+};
+
+export type AdaptiveSession = {
+  studentId: string;
+  quizId: string;
+  currentDifficulty: "easy" | "medium" | "hard";
+  history: {
+    questionId: string;
+    wasCorrect: boolean;
+  }[];
 };

@@ -1,0 +1,3 @@
+{
+  "/dashboard/quizzes/[quizId]/analytics/page": "app/dashboard/quizzes/[quizId]/analytics/page.js"
+}

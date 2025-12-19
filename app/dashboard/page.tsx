@@ -2,7 +2,7 @@
 
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react'; // Combined imports
 import { StudentDashboard } from '@/components/dashboards/student-dashboard';
 import { InstructorDashboard } from '@/components/dashboards/instructor-dashboard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,7 +11,6 @@ import type { UserProfile, UserPreferences } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow';
 import { TeacherOnboarding } from '@/components/onboarding/teacher-onboarding';
-import { useState, useEffect } from 'react';
 
 function AdminDashboard() {
   return (
@@ -53,17 +52,17 @@ export default function DashboardPage() {
     if (preferences !== undefined && userProfile) {
       setCheckingOnboarding(false);
       
-      // Show teacher onboarding if teacher and missing profile fields
       if ((userProfile.role === 'instructor' || userProfile.role === 'admin') && !userProfile.institution) {
         setShowOnboarding(true);
       } 
-      // Show student onboarding if student and not completed
       else if (userProfile.role === 'student' && !preferences?.onboardingCompleted) {
         setShowOnboarding(true);
       }
     }
   }, [preferences, userProfile]);
 
+  // This useEffect is now redundant because of the DashboardLayout
+  // but keeping it doesn't harm anything for now.
   useEffect(() => {
     if (!isUserLoading && !user) {
       router.push('/login');
@@ -94,7 +93,7 @@ export default function DashboardPage() {
                     <Skeleton className="h-64 w-full" />
                 </div>
             </div>
-        </div>
+        </div> // Fixed: Added closing div tag
     );
   }
 

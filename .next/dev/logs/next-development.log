@@ -1,0 +1,217 @@
+[00:00:10.963] Server  LOG      ○ Compiling middleware ...
+[00:00:12.557] Server  LOG      ✓ Ready in 9.4s
+[00:00:38.759] Server  LOG      ○ Compiling / ...
+[00:00:59.020] Server  ERROR    ⨯ ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:00:59.040] Server  ERROR    ⨯ ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:03:33.982] Server  ERROR    ⨯ ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:03:35.644] Server  ERROR    ⨯ ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:05:50.034] Server  ERROR    ⨯ ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:05:50.832] Server  ERROR    ⨯ ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:05:53.957] Server  WARN     ⚠ Cross origin request detected from 9000-firebase-new-branch-name-1766138040574.cluster-nulpgqge5rgw6rwqiydysl6ocy.cloudworkstations.dev to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+[00:05:54.497] Browser ERROR   uncaughtError: Error: ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:05:55.303] Browser ERROR   ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found
+[00:05:55.868] Browser ERROR   ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found
+[00:08:45.752] Server  ERROR    ⨯ ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:08:47.059] Server  ERROR    ⨯ ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:08:49.382] Browser ERROR   uncaughtError: Error: ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[00:08:49.516] Browser ERROR   ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found
+[00:08:49.657] Browser ERROR   ./app/layout.tsx:6:1
+Module not found: Can't resolve '@/firebase/client-provider'
+  4 | import { ThemeProvider } from '@/components/theme-provider'
+  5 | import { Toaster } from '@/components/ui/toaster'
+> 6 | import { FirebaseClientProvider } from '@/firebase/client-provider'
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  7 |
+  8 | const inter = Inter({ subsets: ['latin'] })
+  9 |
+
+Import map: aliased to relative './firebase/client-provider' inside of [project]/
+
+https://nextjs.org/docs/messages/module-not-found

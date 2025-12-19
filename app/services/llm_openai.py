@@ -1,9 +1,10 @@
-﻿# app/services/llm_openai.py  (replace existing generate_mcq_from_text with this)
+# app/services/llm_openai.py
 import os
 import time
 import json
 import logging
 import re
+import asyncio
 from fastapi import HTTPException
 
 # Gemini SDK
@@ -13,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Environment config
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-pro-latest")  # or "gemini-2.5-flash"
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-pro")
 
 if GEMINI_API_KEY:
     try:
@@ -86,9 +87,10 @@ def _parse_and_normalize_mcq_list(raw_text: str):
     return out
 
 
-def generate_mcq_from_text(text: str, num_questions: int = 10, max_retries: int = 3, backoff_base: float = 1.0):
+async def generate_mcq_from_text(text: str, num_questions: int = 10, max_retries: int = 3, backoff_base: float = 1.0):
     """
-    Generate MCQs via Gemini with simple retry/backoff and graceful error handling.
+    Generate MCQs via Gemini with retry/backoff and graceful error handling.
+    This is an async function that uses a thread pool for blocking calls.
     On quota / rate-limit failures this raises HTTPException(503, ...).
     """
     if not GEMINI_API_KEY:
@@ -100,18 +102,19 @@ def generate_mcq_from_text(text: str, num_questions: int = 10, max_retries: int 
     for attempt in range(1, max_retries + 1):
         try:
             model = genai.GenerativeModel(GEMINI_MODEL)
-            response = model.generate_content(prompt)
-            # Most SDK responses expose .text
+            
+            # Run the synchronous SDK call in a thread pool to avoid blocking asyncio event loop
+            loop = asyncio.get_event_loop()
+            response = await loop.run_in_executor(None, model.generate_content, prompt)
+
             try:
                 raw = response.text
             except Exception:
                 raw = str(response)
 
             raw = raw.strip()
-            # parse JSON normally
             mcq_list = _parse_and_normalize_mcq_list(raw)
 
-            # If parsed list length differs, log a warning but return whatever we have
             if len(mcq_list) != num_questions:
                 logger.warning("Gemini returned %d MCQs (expected %d).", len(mcq_list), num_questions)
 
@@ -121,42 +124,21 @@ def generate_mcq_from_text(text: str, num_questions: int = 10, max_retries: int 
             last_exc = e
             err_text = str(e).lower()
 
-            # transient rate-limit / quota errors: retry with exponential backoff
             if any(tok in err_text for tok in ("rate", "quota", "429", "insufficient_quota", "quota_exceeded")):
                 wait = backoff_base * (2 ** (attempt - 1))
                 logger.warning("Gemini rate/quota error (attempt %d/%d): %s. Retrying in %.1fs.", attempt, max_retries, e, wait)
-                time.sleep(wait)
+                await asyncio.sleep(wait)  # Use asyncio.sleep in an async function
                 continue
 
-            # If JSON parsing failed, attempt to salvage JSON from exception message or response string (no retry)
             if "json" in err_text or "parse" in err_text or "did not contain a json" in err_text:
-                try:
-                    # try to extract JSON array from the last successful raw if available
-                    if 'raw' in locals() and isinstance(raw, str):
-                        m = re.search(r"(\[.*\])", raw, flags=re.S)
-                        if m:
-                            parsed = json.loads(m.group(1))
-                            out = []
-                            for item in parsed:
-                                out.append(
-                                    {
-                                        "question": item.get("question", "").strip(),
-                                        "answer": item.get("answer", "").strip(),
-                                        "distractors": item.get("distractors", [])[:3],
-                                        "explanation": item.get("explanation", "").strip(),
-                                        "difficulty": item.get("difficulty", "medium"),
-                                        "topic": item.get("topic", "general"),
-                                    }
-                                )
-                            return out
-                except Exception:
-                    pass
+                logger.error("Gemini output parsing failed: %s", e)
+                # No retry on parsing failure as the output is already bad
+                break
 
-            # non-retryable error -> log and break
             logger.error("Gemini call failed (non-retryable or unknown): %s", e)
             break
 
-    # Retries exhausted or non-retryable failure occurred.
+    # Construct a detailed error message after all retries are exhausted
     msg = "LLM request failed."
     if last_exc is not None:
         s = str(last_exc)
@@ -169,17 +151,14 @@ def generate_mcq_from_text(text: str, num_questions: int = 10, max_retries: int 
 
     logger.exception("LLM generation failed after retries: %s", last_exc)
 
-    # Optionally: return a small local fallback instead of erroring out
-    # return local_fallback_mcq(text, min(3, num_questions))
-
-    # Otherwise raise an HTTPException so the API returns a 503
-    raise HTTPException(status_code=503, detail=msg)
+    # Fallback to local generation instead of raising an error
+    logger.warning("LLM generation failed. Falling back to local generation.")
+    return local_fallback_mcq(text, min(3, num_questions))
 
 
 def local_fallback_mcq(text: str, num_questions: int = 3):
     """
     Very small fallback: extract sentences from text and make simple QA pairs.
-    Not as good as LLM, but ensures service remains usable offline.
     """
     import random
 

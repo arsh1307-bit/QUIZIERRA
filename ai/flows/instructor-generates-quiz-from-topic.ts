@@ -34,10 +34,6 @@ const GenerateQuizOutputSchema = z.object({
 });
 export type GenerateQuizOutput = z.infer<typeof GenerateQuizOutputSchema>;
 
-export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
-  return generateQuizFlow(input);
-}
-
 const prompt = ai.definePrompt({
   name: 'generateQuizPrompt',
   input: {schema: GenerateQuizInputSchema},
@@ -60,6 +56,7 @@ Return the entire quiz as a single, valid JSON object that strictly follows the 
 `,
 });
 
+// CORRECT ORDER: Define the flow before it is exported and used.
 const generateQuizFlow = ai.defineFlow(
   {
     name: 'generateQuizFlow',
@@ -80,3 +77,7 @@ const generateQuizFlow = ai.defineFlow(
     return output!;
   }
 );
+
+export async function generateQuiz(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
+  return generateQuizFlow(input);
+}
