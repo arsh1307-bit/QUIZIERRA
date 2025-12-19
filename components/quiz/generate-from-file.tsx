@@ -12,10 +12,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
 import type { GenerateQuizOutput } from '@/ai/flows/instructor-generates-quiz-from-topic';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { EDUCATIONAL_LEVELS, EDUCATIONAL_YEARS, type EducationalLevel } from '@/components/dashboards/student/educational-level-dialog';
 
 const formSchema = z.object({
   numMcq: z.coerce.number().min(0).max(20),
   numText: z.coerce.number().min(0).max(20),
+  educationalLevel: z.string().optional(),
+  educationalYear: z.string().optional(),
 }).refine(data => data.numMcq + data.numText > 0, {
   message: "You must generate at least one question.",
   path: ["numMcq"],
@@ -28,12 +32,15 @@ type GenerateFromFileProps = {
 export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [selectedLevel, setSelectedLevel] = useState<EducationalLevel | ''>('');
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       numMcq: 5,
       numText: 0,
+      educationalLevel: '',
+      educationalYear: '',
     },
   });
 
@@ -90,6 +97,8 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
                 context: textContent,
                 numMcq: values.numMcq,
                 numText: values.numText,
+                educationalLevel: values.educationalLevel || undefined,
+                educationalYear: values.educationalYear || undefined,
             }),
         });
 
@@ -184,6 +193,68 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
                         <FormControl>
                         <Input type="number" min={0} max={20} {...field} />
                         </FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="educationalLevel"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Target Educational Level (Optional)</FormLabel>
+                        <Select 
+                            onValueChange={(value) => {
+                                field.onChange(value);
+                                setSelectedLevel(value as EducationalLevel);
+                                form.setValue('educationalYear', '');
+                            }} 
+                            value={field.value}
+                        >
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select level" />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {EDUCATIONAL_LEVELS.map((level) => (
+                                    <SelectItem key={level.value} value={level.value}>
+                                        {level.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                <FormField
+                    control={form.control}
+                    name="educationalYear"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Year/Grade (Optional)</FormLabel>
+                        <Select 
+                            onValueChange={field.onChange} 
+                            value={field.value}
+                            disabled={!selectedLevel}
+                        >
+                            <FormControl>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={selectedLevel ? "Select year" : "Select level first"} />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {selectedLevel && EDUCATIONAL_YEARS[selectedLevel]?.map((year) => (
+                                    <SelectItem key={year} value={year}>
+                                        {year}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <FormMessage />
                     </FormItem>
                     )}

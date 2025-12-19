@@ -11,12 +11,17 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { generateQuiz } from '@/ai/flows/instructor-generates-quiz-from-topic';
 import type { GenerateQuizOutput } from '@/ai/flows/instructor-generates-quiz-from-topic';
+import { educationalLevelOptions, getYearOptions } from '@/components/dashboards/educational-level-dialog';
+import type { EducationalLevel } from '@/lib/types';
 
 const formSchema = z.object({
   numMcq: z.coerce.number().min(0).max(20),
   numText: z.coerce.number().min(0).max(20),
+  educationalLevel: z.enum(['middle_school', 'high_school', 'junior_college', 'diploma', 'graduation', 'post_graduation']).optional(),
+  educationalYear: z.string().optional(),
 }).refine(data => data.numMcq + data.numText > 0, {
   message: "You must generate at least one question.",
   path: ["numMcq"],
@@ -35,8 +40,13 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
     defaultValues: {
       numMcq: 5,
       numText: 0,
+      educationalLevel: undefined,
+      educationalYear: undefined,
     },
   });
+
+  const selectedLevel = form.watch('educationalLevel');
+  const yearOptions = selectedLevel ? getYearOptions(selectedLevel as EducationalLevel) : [];
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -85,7 +95,9 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
         const aiResult = await generateQuiz({
             context: textContent,
             numMcq: values.numMcq,
-            numText: values.numText
+            numText: values.numText,
+            educationalLevel: values.educationalLevel,
+            educationalYear: values.educationalYear,
         });
 
         if (aiResult && aiResult.questions && aiResult.questions.length > 0) {
@@ -177,6 +189,59 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
                     </FormItem>
                     )}
                 />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="educationalLevel"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Target Educational Level (Optional)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select level..." />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {educationalLevelOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                {selectedLevel && yearOptions.length > 0 && (
+                    <FormField
+                        control={form.control}
+                        name="educationalYear"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Year/Grade (Optional)</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                <SelectValue placeholder="Select year..." />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {yearOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </SelectItem>
+                                ))}
+                            </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                )}
             </div>
             <FormMessage>{form.formState.errors.root?.message}</FormMessage>
 

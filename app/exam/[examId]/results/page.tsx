@@ -1,8 +1,8 @@
 'use client';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
-import type { Attempt, GradeSubmissionOutput } from '@/lib/types';
+import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
+import { doc, updateDoc, collection, getDocs, query, where, getDoc } from 'firebase/firestore';
+import type { Attempt, GradeSubmissionOutput, UserProfile } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
@@ -50,6 +50,22 @@ export default function ExamResultsPage() {
         if (attempt && attempt.status === 'Pending Grading' && firestore) {
             const performGrading = async () => {
                 try {
+                    // Fetch the student's educational level from their profile
+                    let educationalLevel: string | undefined;
+                    let educationalYear: string | undefined;
+                    
+                    try {
+                        const userDocRef = doc(firestore, 'users', attempt.studentId);
+                        const userDocSnap = await getDoc(userDocRef);
+                        if (userDocSnap.exists()) {
+                            const userData = userDocSnap.data() as UserProfile;
+                            educationalLevel = userData.educationalLevel;
+                            educationalYear = userData.educationalYear;
+                        }
+                    } catch (e) {
+                        console.warn('Could not fetch student educational level:', e);
+                    }
+
                     // Normalize answers to the shape expected by the grading flow.
                     const normalizedAnswers = (attempt.answers || []).map((answer: any) => ({
                         questionId: answer.questionId,
@@ -60,7 +76,11 @@ export default function ExamResultsPage() {
                         timeTaken: typeof answer.timeTaken === 'number' ? answer.timeTaken : Number(answer.timeTaken ?? 0),
                     }));
 
-                    const result = await gradeSubmission({ answers: normalizedAnswers });
+                    const result = await gradeSubmission({ 
+                        answers: normalizedAnswers,
+                        educationalLevel: educationalLevel as any,
+                        educationalYear: educationalYear,
+                    });
                     setGradingResult(result);
                     
                     const attemptsCollection = collection(firestore, 'attempts');
@@ -73,16 +93,20 @@ export default function ExamResultsPage() {
                     }).length;
 
                     const nextPart = CAR_PARTS[earnedPartsCount % CAR_PARTS.length];
-                    const partEarned = result.finalScore > (attempt.totalQuestions * 10 * 0.7) ? nextPart : undefined;
+                    const partEarned = result.finalScore > (attempt.totalQuestions * 10 * 0.7) ? nextPart : null;
 
                     if (attemptRef) {
-                        await updateDoc(attemptRef, {
+                        const updateData: Record<string, any> = {
                             status: 'Completed',
                             score: result.finalScore,
                             gradedAnswers: result.gradedAnswers,
-                            partEarned: partEarned,
                             completedAt: new Date().toISOString(),
-                        });
+                        };
+                        // Only include partEarned if it's not null (Firestore doesn't accept undefined)
+                        if (partEarned) {
+                            updateData.partEarned = partEarned;
+                        }
+                        await updateDoc(attemptRef, updateData);
                     }
                 } catch (e: any) {
                     setError('Failed to grade submission. Please contact your instructor.');

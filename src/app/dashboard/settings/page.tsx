@@ -20,6 +20,12 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { UserProfile } from '@/lib/types';
+import { GraduationCap, Pencil } from 'lucide-react';
+import { 
+  EducationalLevelDialog, 
+  educationalLevelOptions, 
+  getYearOptions 
+} from '@/components/dashboards/educational-level-dialog';
 
 const formSchema = z.object({
   displayName: z.string().min(2, { message: 'Display name must be at least 2 characters.' }),
@@ -180,11 +186,107 @@ function SettingsForm() {
   );
 }
 
+// Educational Settings Card for Students
+function EducationalSettingsCard() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const [showDialog, setShowDialog] = useState(false);
+
+  const userProfileRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'users', user.uid);
+  }, [user, firestore]);
+
+  const { data: userProfile, isLoading } = useDoc<UserProfile>(userProfileRef);
+
+  // Only show for students
+  if (isLoading) {
+    return (
+      <Card className="max-w-2xl mt-6">
+        <CardHeader>
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!userProfile || userProfile.role !== 'student') {
+    return null;
+  }
+
+  const levelLabel = userProfile.educationalLevel
+    ? educationalLevelOptions.find(o => o.value === userProfile.educationalLevel)?.label
+    : 'Not set';
+
+  const yearOptions = getYearOptions(userProfile.educationalLevel);
+  const yearLabel = userProfile.educationalYear
+    ? yearOptions.find(o => o.value === userProfile.educationalYear)?.label
+    : 'Not set';
+
+  return (
+    <>
+      <EducationalLevelDialog
+        open={showDialog}
+        onOpenChange={setShowDialog}
+        initialValues={{
+          educationalLevel: userProfile.educationalLevel,
+          educationalYear: userProfile.educationalYear,
+        }}
+      />
+      
+      <Card className="max-w-2xl mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <GraduationCap className="h-5 w-5" />
+            Educational Preferences
+          </CardTitle>
+          <CardDescription>
+            Your educational background helps us personalize your learning experience.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">Educational Level</p>
+              <p className="text-sm font-semibold">{levelLabel}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-1">
+                {userProfile.educationalLevel === 'middle_school' || userProfile.educationalLevel === 'high_school'
+                  ? 'Grade'
+                  : userProfile.educationalLevel === 'junior_college'
+                  ? 'Standard'
+                  : 'Year'}
+              </p>
+              <p className="text-sm font-semibold">{yearLabel}</p>
+            </div>
+          </div>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => setShowDialog(true)}
+            className="w-full"
+          >
+            <Pencil className="h-4 w-4 mr-2" />
+            Edit Educational Preferences
+          </Button>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
 export default function SettingsPage() {
     return (
         <div className="p-8">
             <h1 className="text-3xl font-bold tracking-tight mb-8">Settings</h1>
             <SettingsForm />
+            <EducationalSettingsCard />
         </div>
     )
 }

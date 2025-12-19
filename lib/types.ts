@@ -2,12 +2,23 @@
 
 export type UserRole = 'student' | 'instructor' | 'admin';
 
+export type EducationalLevel = 
+  | 'middle_school' 
+  | 'high_school' 
+  | 'junior_college' 
+  | 'diploma' 
+  | 'graduation' 
+  | 'post_graduation';
+
 export type UserProfile = {
   id: string;
   email: string;
   displayName: string;
   createdAt: string;
   role: UserRole;
+  // Educational preferences (for students)
+  educationalLevel?: EducationalLevel;
+  educationalYear?: string; // Grade for school, Year for college/diploma
 };
 
 export type Quiz = {

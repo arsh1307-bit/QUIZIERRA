@@ -4,7 +4,7 @@ import { generateQuiz } from '@/ai/flows/instructor-generates-quiz-from-topic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { context, numMcq, numText } = body || {};
+    const { context, numMcq, numText, educationalLevel, educationalYear } = body || {};
 
     if (!context || typeof context !== 'string' || !context.trim()) {
       return NextResponse.json(
@@ -37,7 +37,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await generateQuiz({ context, numMcq: mcq, numText: text });
+    const result = await generateQuiz({ 
+      context, 
+      numMcq: mcq, 
+      numText: text,
+      educationalLevel,
+      educationalYear,
+    });
 
     return NextResponse.json(result);
   } catch (error: any) {
