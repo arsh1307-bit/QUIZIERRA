@@ -6,7 +6,7 @@ import { getAuth } from 'firebase/auth';
 
 export async function createQuizWithAI(topic: string, numQuestions: number, userId: string) {
   const firestore = getFirestore();
-  const quizData = await generateQuiz({ context: topic, numMcq: numQuestions, numText: 0 });
+  const quizData = await generateQuiz({ context: topic, numMcq: numQuestions, numText: 0, isAdaptive: false });
   
   try {
     const quizCollectionRef = collection(firestore, 'quizzes');

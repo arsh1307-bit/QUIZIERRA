@@ -81,6 +81,8 @@ export type GradedAnswer = StudentAnswer & {
 export type GradeSubmissionOutput = {
   gradedAnswers: GradedAnswer[];
   finalScore: number;
+  maxPossibleScore?: number;
+  normalizedFinalScore?: number;
 };
 
 // Adaptive quiz scoring configuration

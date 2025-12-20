@@ -56,7 +56,7 @@ export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
         const classified: QuestionState[] = [];
 
         for (const q of qs) {
-            let difficulty: string | undefined = q.difficulty;
+            let difficulty: 'beginner' | 'intermediate' | 'hard' = q.difficulty ?? 'intermediate';
             try {
                 const res = await fetch('/api/predict-difficulty', {
                     method: 'POST',
@@ -65,7 +65,7 @@ export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    if (data?.label && typeof data.label === 'string') {
+                    if (data?.label && (data.label === 'beginner' || data.label === 'intermediate' || data.label === 'hard')) {
                         difficulty = data.label;
                     }
                 }

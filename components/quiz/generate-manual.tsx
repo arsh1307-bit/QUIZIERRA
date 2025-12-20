@@ -121,6 +121,7 @@ export function GenerateManual({ onQuizGenerated }: GenerateManualProps) {
         type: q.type,
         content: q.content,
         maxScore: q.maxScore,
+        difficulty: 'intermediate' as const,
         ...(q.type === 'mcq'
           ? {
               options: q.options.map(o => o.trim()).filter(Boolean),

@@ -91,7 +91,7 @@ export default function ExamResultsPage() {
                         answers: normalizedAnswers,
                         educationalLevel: educationalLevel as any,
                         educationalYear: educationalYear,
-                        isAdaptive: attempt.isAdaptive,
+                        isAdaptive: attempt.isAdaptive ?? false,
                     });
                     setGradingResult(result);
                     
