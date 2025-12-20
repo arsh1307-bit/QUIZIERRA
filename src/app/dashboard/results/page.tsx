@@ -10,6 +10,15 @@ import type { Attempt } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Sparkles } from 'lucide-react';
+
+// Helper to get max possible score for an attempt
+function getMaxPossibleScore(attempt: Attempt): number {
+    if (attempt.isAdaptive && (attempt as any).maxPossibleScore) {
+        return (attempt as any).maxPossibleScore;
+    }
+    return attempt.totalQuestions * 10;
+}
 
 function StudentResults() {
     const { user } = useUser();
@@ -51,6 +60,7 @@ function StudentResults() {
                     <TableRow>
                         <TableHead>Exam</TableHead>
                         <TableHead>Score</TableHead>
+                        <TableHead>Percentage</TableHead>
                         <TableHead>Accuracy</TableHead>
                         <TableHead>Avg Time / Q</TableHead>
                         <TableHead>Status</TableHead>
@@ -58,16 +68,31 @@ function StudentResults() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {attempts.map(attempt => (
-                        <TableRow key={attempt.id}>
-                            <TableCell className="font-medium">{attempt.examTitle || 'N/A'}</TableCell>
-                            <TableCell>{attempt.score}/{attempt.totalQuestions}</TableCell>
-                            <TableCell>{computeAccuracy(attempt)}</TableCell>
-                            <TableCell>{computeAvgTime(attempt)}</TableCell>
-                            <TableCell><Badge variant={attempt.status === 'Completed' ? 'default' : 'secondary'}>{attempt.status}</Badge></TableCell>
-                            <TableCell>{attempt.completedAt ? new Date(attempt.completedAt).toLocaleDateString() : 'In Progress'}</TableCell>
-                        </TableRow>
-                    ))}
+                    {attempts.map(attempt => {
+                        const maxScore = getMaxPossibleScore(attempt);
+                        const percentage = maxScore > 0 ? Math.round((attempt.score / maxScore) * 100) : 0;
+                        return (
+                            <TableRow key={attempt.id}>
+                                <TableCell className="font-medium">
+                                    <div className="flex items-center gap-2">
+                                        {attempt.examTitle || 'N/A'}
+                                        {attempt.isAdaptive && (
+                                            <Badge variant="outline" className="text-xs bg-purple-500/10 border-purple-300">
+                                                <Sparkles className="h-3 w-3 mr-1" />
+                                                Adaptive
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </TableCell>
+                                <TableCell>{attempt.score}/{maxScore}</TableCell>
+                                <TableCell className="font-bold">{percentage}%</TableCell>
+                                <TableCell>{computeAccuracy(attempt)}</TableCell>
+                                <TableCell>{computeAvgTime(attempt)}</TableCell>
+                                <TableCell><Badge variant={attempt.status === 'Completed' ? 'default' : 'secondary'}>{attempt.status}</Badge></TableCell>
+                                <TableCell>{attempt.completedAt ? new Date(attempt.completedAt).toLocaleDateString() : 'In Progress'}</TableCell>
+                            </TableRow>
+                        );
+                    })}
                 </TableBody>
             </Table>
         </Card>
@@ -100,20 +125,36 @@ function InstructorResults() {
                         <TableHead>Student ID</TableHead>
                         <TableHead>Exam</TableHead>
                         <TableHead>Score</TableHead>
+                        <TableHead>Percentage</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Date</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {attempts.map(attempt => (
-                        <TableRow key={attempt.id}>
-                             <TableCell className="font-mono text-xs">{attempt.studentId.substring(0,10)}...</TableCell>
-                            <TableCell className="font-medium">{attempt.examTitle || 'N/A'}</TableCell>
-                            <TableCell>{attempt.score}/{attempt.totalQuestions}</TableCell>
-                            <TableCell><Badge variant={attempt.status === 'Completed' ? 'default' : 'secondary'}>{attempt.status}</Badge></TableCell>
-                            <TableCell>{attempt.completedAt ? new Date(attempt.completedAt).toLocaleDateString() : 'In Progress'}</TableCell>
-                        </TableRow>
-                    ))}
+                    {attempts.map(attempt => {
+                        const maxScore = getMaxPossibleScore(attempt);
+                        const percentage = maxScore > 0 ? Math.round((attempt.score / maxScore) * 100) : 0;
+                        return (
+                            <TableRow key={attempt.id}>
+                                <TableCell className="font-mono text-xs">{attempt.studentId.substring(0,10)}...</TableCell>
+                                <TableCell className="font-medium">
+                                    <div className="flex items-center gap-2">
+                                        {attempt.examTitle || 'N/A'}
+                                        {attempt.isAdaptive && (
+                                            <Badge variant="outline" className="text-xs bg-purple-500/10 border-purple-300">
+                                                <Sparkles className="h-3 w-3 mr-1" />
+                                                Adaptive
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </TableCell>
+                                <TableCell>{attempt.score}/{maxScore}</TableCell>
+                                <TableCell className="font-bold">{percentage}%</TableCell>
+                                <TableCell><Badge variant={attempt.status === 'Completed' ? 'default' : 'secondary'}>{attempt.status}</Badge></TableCell>
+                                <TableCell>{attempt.completedAt ? new Date(attempt.completedAt).toLocaleDateString() : 'In Progress'}</TableCell>
+                            </TableRow>
+                        );
+                    })}
                 </TableBody>
             </Table>
         </Card>

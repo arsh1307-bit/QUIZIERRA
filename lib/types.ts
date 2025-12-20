@@ -2,12 +2,23 @@
 
 export type UserRole = 'student' | 'instructor' | 'admin';
 
+export type EducationalLevel = 
+  | 'middle_school' 
+  | 'high_school' 
+  | 'junior_college' 
+  | 'diploma' 
+  | 'graduation' 
+  | 'post_graduation';
+
 export type UserProfile = {
   id: string;
   email: string;
   displayName: string;
   createdAt: string;
   role: UserRole;
+  // Educational preferences (for students)
+  educationalLevel?: EducationalLevel;
+  educationalYear?: string; // Grade for school, Year for college/diploma
 };
 
 export type Quiz = {
@@ -19,7 +30,10 @@ export type Quiz = {
   questionIds?: string[];
   createdBy: string;
   createdAt: string;
+  isAdaptive?: boolean; // Whether this quiz uses adaptive question flow
 };
+
+export type DifficultyLevel = 'beginner' | 'intermediate' | 'hard';
 
 export type Question = {
   id: string;
@@ -29,6 +43,10 @@ export type Question = {
   correctAnswer?: string;
   maxScore: number;
   quizId: string;
+  // Adaptive quiz fields
+  difficulty?: DifficultyLevel;
+  groupId?: string; // Groups questions together (Q1_a, Q1_b, Q1_c share same groupId)
+  groupIndex?: number; // Which question group this belongs to (0, 1, 2...)
 };
 
 
@@ -50,6 +68,8 @@ export type StudentAnswer = {
     answer: string | string[];
     correctAnswer?: string;
     timeTaken: number; // in seconds
+    difficulty?: DifficultyLevel; // Track what difficulty was answered
+    groupIndex?: number; // Track which group this answer belongs to
 };
 
 export type GradedAnswer = StudentAnswer & {
@@ -62,6 +82,16 @@ export type GradeSubmissionOutput = {
   gradedAnswers: GradedAnswer[];
   finalScore: number;
 };
+
+// Adaptive quiz scoring configuration
+export const ADAPTIVE_SCORE_MULTIPLIERS: Record<DifficultyLevel, number> = {
+  beginner: 1,      // Base score
+  intermediate: 1.5, // 50% bonus
+  hard: 2,          // 100% bonus (double)
+};
+
+// For normalized scoring - each question group contributes equal max score
+export const NORMALIZED_GROUP_MAX_SCORE = 10;
 
 
 export type Attempt = {
@@ -77,4 +107,6 @@ export type Attempt = {
     completedAt?: string;
     examTitle?: string; // Denormalized for easy display
     partEarned?: string; // For gamification
+    isAdaptive?: boolean; // Whether this was an adaptive quiz attempt
+    adaptivePath?: DifficultyLevel[]; // Track the difficulty path taken
 };

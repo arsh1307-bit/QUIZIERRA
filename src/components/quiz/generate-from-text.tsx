@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -14,14 +15,22 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { Loader2, Wand2 } from 'lucide-react';
+import { Loader2, Wand2, Sparkles } from 'lucide-react';
+import { generateQuiz } from '@/ai/flows/instructor-generates-quiz-from-topic';
+import { educationalLevelOptions, getYearOptions } from '@/components/dashboards/educational-level-dialog';
+import type { EducationalLevel } from '@/lib/types';
 
 const formSchema = z.object({
   context: z.string().min(50, { message: 'Please provide at least 50 characters of context.' }),
   numMcq: z.coerce.number().min(0).max(20),
   numText: z.coerce.number().min(0).max(20),
+  educationalLevel: z.enum(['middle_school', 'high_school', 'junior_college', 'diploma', 'graduation', 'post_graduation']).optional(),
+  educationalYear: z.string().optional(),
+  isAdaptive: z.boolean().default(false),
 }).refine(data => data.numMcq + data.numText > 0, {
   message: "You must generate at least one question.",
   path: ["numMcq"],
@@ -29,7 +38,7 @@ const formSchema = z.object({
 
 
 type GenerateFromTextProps = {
-    onQuizGenerated: (data: {title: string, questions: any[]}) => void;
+    onQuizGenerated: (data: {title: string, questions: any[], isAdaptive?: boolean}) => void;
 }
 
 export function GenerateFromText({ onQuizGenerated }: GenerateFromTextProps) {
@@ -41,27 +50,38 @@ export function GenerateFromText({ onQuizGenerated }: GenerateFromTextProps) {
       context: '',
       numMcq: 5,
       numText: 0,
+      educationalLevel: undefined,
+      educationalYear: undefined,
+      isAdaptive: false,
     },
   });
+
+  const selectedLevel = form.watch('educationalLevel');
+  const isAdaptive = form.watch('isAdaptive');
+  const yearOptions = selectedLevel ? getYearOptions(selectedLevel as EducationalLevel) : [];
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsGenerating(true);
     try {
-      const r = await fetch('/api/generate-quiz', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ context: values.context, numMcq: values.numMcq, numText: values.numText }),
-      });
-      if (!r.ok) throw new Error('Generation service failed.');
-      const json = await r.json();
-      const title = json.title || 'Generated Quiz';
-      const questions = json.questions || [];
-      if (questions && questions.length > 0) {
-        toast({ title: 'Quiz Generated!', description: 'Review the questions before saving.' });
-        onQuizGenerated({ title, questions });
-      } else {
-        throw new Error('The AI could not generate questions from the provided text.');
-      }
+        const result = await generateQuiz({
+          context: values.context,
+          numMcq: values.numMcq,
+          numText: values.numText,
+          educationalLevel: values.educationalLevel,
+          educationalYear: values.educationalYear,
+          isAdaptive: values.isAdaptive,
+        });
+        if (result.questions && result.questions.length > 0) {
+            toast({ 
+              title: 'Quiz Generated!', 
+              description: values.isAdaptive 
+                ? `Generated ${result.questions.length} adaptive questions (${values.numMcq + values.numText} groups × 3 difficulties).`
+                : 'Review the questions before saving.' 
+            });
+            onQuizGenerated({title: result.title, questions: result.questions, isAdaptive: values.isAdaptive});
+        } else {
+            throw new Error('The AI could not generate questions from the provided text.');
+        }
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -121,7 +141,87 @@ export function GenerateFromText({ onQuizGenerated }: GenerateFromTextProps) {
                     )}
                 />
             </div>
-             <FormMessage>{form.formState.errors.root?.message}</FormMessage>
+
+            <div className="grid grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="educationalLevel"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Target Educational Level (Optional)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select level..." />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {educationalLevelOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                {selectedLevel && yearOptions.length > 0 && (
+                    <FormField
+                        control={form.control}
+                        name="educationalYear"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Year/Grade (Optional)</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                <SelectValue placeholder="Select year..." />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {yearOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </SelectItem>
+                                ))}
+                            </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                )}
+            </div>
+
+            <FormField
+                control={form.control}
+                name="isAdaptive"
+                render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10">
+                    <div className="space-y-0.5">
+                        <FormLabel className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-purple-500" />
+                            Adaptive Quiz Mode
+                        </FormLabel>
+                        <FormDescription>
+                            {isAdaptive 
+                              ? `Will generate ${(Number(form.watch('numMcq')) + Number(form.watch('numText'))) * 3} questions (3 difficulties per question group). Questions adapt based on student performance.`
+                              : 'Enable to generate questions at multiple difficulty levels that adapt to student performance.'}
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                        />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+
+            <FormMessage>{form.formState.errors.root?.message}</FormMessage>
 
             <Button type="submit" className="w-full" disabled={isGenerating}>
             {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}

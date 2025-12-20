@@ -7,7 +7,7 @@ const PYTHON_AI_BASE = process.env.PYTHON_AI_BASE || 'http://127.0.0.1:8000';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { context, numMcq, numText } = body || {};
+    const { context, numMcq, numText, educationalLevel, educationalYear } = body || {};
 
     if (!context || typeof context !== 'string' || !context.trim()) {
       return NextResponse.json(

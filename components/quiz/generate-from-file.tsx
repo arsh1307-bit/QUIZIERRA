@@ -1,7 +1,7 @@
 'use client';
 import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { FileUp, Loader2, FileText, FileX2, UploadCloud } from 'lucide-react';
+import { Loader2, FileText, FileX2, UploadCloud, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/hooks/use-toast';
@@ -9,20 +9,28 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { Switch } from '../ui/switch';
+import { generateQuiz } from '@/ai/flows/instructor-generates-quiz-from-topic';
 import type { GenerateQuizOutput } from '@/ai/flows/instructor-generates-quiz-from-topic';
+import { educationalLevelOptions, getYearOptions } from '@/components/dashboards/educational-level-dialog';
+import type { EducationalLevel } from '@/lib/types';
 
 const formSchema = z.object({
   numMcq: z.coerce.number().min(0).max(20),
   numText: z.coerce.number().min(0).max(20),
+  educationalLevel: z.enum(['middle_school', 'high_school', 'junior_college', 'diploma', 'graduation', 'post_graduation']).optional(),
+  educationalYear: z.string().optional(),
+  isAdaptive: z.boolean().default(false),
 }).refine(data => data.numMcq + data.numText > 0, {
   message: "You must generate at least one question.",
   path: ["numMcq"],
 });
 
 type GenerateFromFileProps = {
-    onQuizGenerated: (data: GenerateQuizOutput) => void;
+    onQuizGenerated: (data: GenerateQuizOutput & { isAdaptive?: boolean }) => void;
 }
 
 export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
@@ -34,8 +42,15 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
     defaultValues: {
       numMcq: 5,
       numText: 0,
+      educationalLevel: undefined,
+      educationalYear: undefined,
+      isAdaptive: false,
     },
   });
+
+  const selectedLevel = form.watch('educationalLevel');
+  const isAdaptive = form.watch('isAdaptive');
+  const yearOptions = selectedLevel ? getYearOptions(selectedLevel as EducationalLevel) : [];
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -81,29 +96,25 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
             throw new Error('Could not extract any text from the file.');
         }
 
-        const aiResponse = await fetch('/api/generate-quiz', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                context: textContent,
-                numMcq: values.numMcq,
-                numText: values.numText,
-            }),
+        const aiResult = await generateQuiz({
+            context: textContent,
+            numMcq: values.numMcq,
+            numText: values.numText,
+            educationalLevel: values.educationalLevel,
+            educationalYear: values.educationalYear,
+            isAdaptive: values.isAdaptive,
         });
 
-        const aiResult = (await aiResponse.json()) as GenerateQuizOutput | { error?: string };
-
-        if (!aiResponse.ok) {
-            throw new Error((aiResult as { error?: string }).error || 'Failed to generate quiz from file.');
-        }
-
-        if ('questions' in aiResult && Array.isArray(aiResult.questions) && aiResult.questions.length > 0) {
-            toast({ title: 'Quiz Generated!', description: 'Review the questions before saving.' });
-            onQuizGenerated(aiResult as GenerateQuizOutput);
+        if (aiResult && aiResult.questions && aiResult.questions.length > 0) {
+          toast({ 
+            title: 'Quiz Generated!', 
+            description: values.isAdaptive 
+              ? `Generated ${aiResult.questions.length} adaptive questions (${values.numMcq + values.numText} groups × 3 difficulties).`
+              : 'Review the questions before saving.' 
+          });
+          onQuizGenerated({ ...aiResult, isAdaptive: values.isAdaptive });
         } else {
-            throw new Error('The AI could not generate questions from the provided file. The content might be too short or unclear.');
+          throw new Error('The AI could not generate questions from the provided file. The content might be too short or unclear.');
         }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Generation Failed', description: error.message || 'An unexpected error occurred.' });
@@ -189,11 +200,91 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
                     )}
                 />
             </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <FormField
+                    control={form.control}
+                    name="educationalLevel"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Target Educational Level (Optional)</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                            <SelectTrigger>
+                            <SelectValue placeholder="Select level..." />
+                            </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                            {educationalLevelOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                            </SelectItem>
+                            ))}
+                        </SelectContent>
+                        </Select>
+                        <FormMessage />
+                    </FormItem>
+                    )}
+                />
+                {selectedLevel && yearOptions.length > 0 && (
+                    <FormField
+                        control={form.control}
+                        name="educationalYear"
+                        render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Year/Grade (Optional)</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                            <FormControl>
+                                <SelectTrigger>
+                                <SelectValue placeholder="Select year..." />
+                                </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                                {yearOptions.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                    {option.label}
+                                </SelectItem>
+                                ))}
+                            </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                        )}
+                    />
+                )}
+            </div>
+
+            <FormField
+                control={form.control}
+                name="isAdaptive"
+                render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10">
+                    <div className="space-y-0.5">
+                        <FormLabel className="flex items-center gap-2">
+                            <Sparkles className="h-4 w-4 text-purple-500" />
+                            Adaptive Quiz Mode
+                        </FormLabel>
+                        <FormDescription>
+                            {isAdaptive 
+                              ? `Will generate ${(Number(form.watch('numMcq')) + Number(form.watch('numText'))) * 3} questions (3 difficulties per question group). Questions adapt based on student performance.`
+                              : 'Enable to generate questions at multiple difficulty levels that adapt to student performance.'}
+                        </FormDescription>
+                    </div>
+                    <FormControl>
+                        <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                        />
+                    </FormControl>
+                </FormItem>
+                )}
+            />
+
             <FormMessage>{form.formState.errors.root?.message}</FormMessage>
 
           <Button type="submit" className="w-full" disabled={!file || isProcessing}>
-            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}
-            {isProcessing ? 'Analyzing & Generating...' : 'Generate Quiz from File'}
+            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
+            {isProcessing ? 'Processing & Generating...' : 'Generate Quiz from File'}
           </Button>
         </form>
       </Form>
