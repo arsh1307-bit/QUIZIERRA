@@ -1,0 +1,34 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-1",
+      "description": "A focused student taking an online exam on a laptop in a modern, well-lit room.",
+      "imageUrl": "https://images.unsplash.com/photo-1596495868845-63031cb496da?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHxzdHVkZW50JTIwb25saW5lJTIwZXhhbXxlbnwwfHx8fDE3NjU0Mjg3NDd8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "student online exam"
+    },
+    {
+      "id": "feature-1",
+      "description": "Abstract visualization of data flowing between a computer and a cloud server, representing autosave.",
+      "imageUrl": "https://images.unsplash.com/photo-1646361425122-88ca02b2515c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxkYXRhJTIwc3luYyUyMGNsb3VkfGVufDB8fHx8MTc2NTQyODc0OHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "data sync cloud"
+    },
+    {
+      "id": "feature-2",
+      "description": "A digital shield icon overlaying a grid of video feeds, symbolizing proctoring security.",
+      "imageUrl": "https://images.unsplash.com/photo-1708807472445-d33589e6b090?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxzZWN1cml0eSUyMG1vbml0b3Jpbmd8ZW58MHx8fHwxNzY1NDI4NzQ3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "security monitoring"
+    },
+    {
+      "id": "feature-3",
+      "description": "A sleek, futuristic car being assembled piece by piece, illustrating gamification progress.",
+      "imageUrl": "https://images.unsplash.com/photo-1581399909946-212344b3cf59?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxmdXR1cmlzdGljJTIwY2FyfGVufDB8fHx8MTc2NTQxOTM3MXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "futuristic car"
+    },
+    {
+      "id": "feature-4",
+      "description": "A friendly robot or AI avatar pointing to a lightbulb, representing a helpful hint.",
+      "imageUrl": "https://images.unsplash.com/photo-1760612887223-95afcf5ab08f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxyb2JvdCUyMGlkZWF8ZW58MHx8fHwxNzY1NDI4NzQ3fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "robot idea"
+    }
+  ]
+}

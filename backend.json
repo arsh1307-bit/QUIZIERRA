@@ -1,0 +1,894 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the Quizierra application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user entity."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "hashedPassword": {
+          "type": "string",
+          "description": "Hashed password of the user. **Note:** It is recommended to use an external authentication provider and not store passwords directly."
+        },
+        "orgId": {
+          "type": "string",
+          "description": "Reference to the Organization this user belongs to. (Relationship: Organization 1:N User)"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user (e.g., student, instructor, proctor, admin)."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the user was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "hashedPassword",
+        "orgId",
+        "role",
+        "createdAt"
+      ]
+    },
+    "Organization": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Organization",
+      "type": "object",
+      "description": "Represents an organization that uses the Quizierra application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the organization entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the organization."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "Quiz": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Quiz",
+      "type": "object",
+      "description": "Represents a quiz in the Quizierra application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the quiz entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the quiz."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the quiz."
+        },
+        "authorId": {
+          "type": "string",
+          "description": "Reference to the User who created the quiz. (Relationship: User 1:N Quiz)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the quiz was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "authorId",
+        "createdAt"
+      ]
+    },
+    "QuizSnapshot": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "QuizSnapshot",
+      "type": "object",
+      "description": "Represents a snapshot of a quiz, providing an immutable version for exams.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the quiz snapshot entity."
+        },
+        "quizId": {
+          "type": "string",
+          "description": "Reference to the Quiz this snapshot is based on. (Relationship: Quiz 1:N QuizSnapshot)"
+        },
+        "snapshotData": {
+          "type": "string",
+          "description": "JSONB data containing the snapshot of the quiz."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the snapshot was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "quizId",
+        "snapshotData",
+        "createdAt"
+      ]
+    },
+    "Question": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Question",
+      "type": "object",
+      "description": "Represents a question in the Quizierra application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the question entity."
+        },
+        "content": {
+          "type": "string",
+          "description": "JSONB data containing the content of the question (e.g., text, images, media)."
+        },
+        "tags": {
+          "type": "array",
+          "description": "Tags associated with the question.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "difficulty": {
+          "type": "string",
+          "description": "Difficulty level of the question."
+        }
+      },
+      "required": [
+        "id",
+        "content"
+      ]
+    },
+    "QuizQuestion": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "QuizQuestion",
+      "type": "object",
+      "description": "Represents the association between a quiz snapshot and a question.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the quiz question entity."
+        },
+        "quizSnapshotId": {
+          "type": "string",
+          "description": "Reference to the QuizSnapshot. (Relationship: QuizSnapshot 1:N QuizQuestion)"
+        },
+        "questionId": {
+          "type": "string",
+          "description": "Reference to the Question. (Relationship: Question 1:N QuizQuestion)"
+        },
+        "order": {
+          "type": "number",
+          "description": "The display order of the question in the quiz."
+        }
+      },
+      "required": [
+        "id",
+        "quizSnapshotId",
+        "questionId",
+        "order"
+      ]
+    },
+    "Exam": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Exam",
+      "type": "object",
+      "description": "Represents an exam instance scheduled for a specific quiz.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the exam entity."
+        },
+        "quizId": {
+          "type": "string",
+          "description": "Reference to the Quiz used for this exam."
+        },
+        "quizTitle": {
+          "type": "string",
+          "description": "Denormalized title of the quiz for easy display."
+        },
+        "scheduledTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the exam starts.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Scheduled", "Live Now", "Completed", "Cancelled"],
+          "description": "The current status of the exam."
+        },
+        "enrolledStudentIds": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of student UIDs enrolled in the exam."
+        },
+        "accessCode": {
+          "type": "string",
+          "description": "A unique code for students to join the exam."
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "The UID of the instructor who created the exam."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the exam was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "quizId",
+        "quizTitle",
+        "scheduledTime",
+        "status",
+        "accessCode",
+        "createdBy",
+        "createdAt"
+      ]
+    },
+    "Attempt": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Attempt",
+      "type": "object",
+      "description": "Represents a user's attempt at taking an exam.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the attempt entity."
+        },
+        "examId": {
+          "type": "string",
+          "description": "Reference to the Exam. (Relationship: Exam 1:N Attempt)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User taking the exam. (Relationship: User 1:N Attempt)"
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the attempt started.",
+          "format": "date-time"
+        },
+        "submitTime": {
+          "type": "string",
+          "description": "Timestamp indicating when the attempt was submitted.",
+          "format": "date-time"
+        },
+        "score": {
+          "type": "number",
+          "description": "The score achieved on the attempt."
+        }
+      },
+      "required": [
+        "id",
+        "examId",
+        "userId",
+        "startTime"
+      ]
+    },
+    "Answer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Answer",
+      "type": "object",
+      "description": "Represents a user's answer to a specific question in an exam attempt.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the answer entity."
+        },
+        "attemptId": {
+          "type": "string",
+          "description": "Reference to the Attempt. (Relationship: Attempt 1:N Answer)"
+        },
+        "questionId": {
+          "type": "string",
+          "description": "Reference to the Question. (Relationship: Question 1:N Answer)"
+        },
+        "answerData": {
+          "type": "string",
+          "description": "JSONB data containing the answer provided by the user."
+        },
+        "clientTs": {
+          "type": "string",
+          "description": "Timestamp from the client when the answer was saved.",
+          "format": "date-time"
+        },
+        "serverTs": {
+          "type": "string",
+          "description": "Timestamp from the server when the answer was saved.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "attemptId",
+        "questionId",
+        "answerData",
+        "clientTs",
+        "serverTs"
+      ]
+    },
+    "AutosaveMessage": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AutosaveMessage",
+      "type": "object",
+      "description": "Represents an autosave message, providing an audit trail of changes.",
+      "properties": {
+        "messageId": {
+          "type": "string",
+          "description": "Unique identifier for the autosave message."
+        },
+        "attemptId": {
+          "type": "string",
+          "description": "Reference to the Attempt. (Relationship: Attempt 1:N AutosaveMessage)"
+        },
+        "questionId": {
+          "type": "string",
+          "description": "Reference to the Question. (Relationship: Question 1:N AutosaveMessage)"
+        },
+        "clientTs": {
+          "type": "string",
+          "description": "Client-side timestamp of the autosave message.",
+          "format": "date-time"
+        },
+        "serverTs": {
+          "type": "string",
+          "description": "Server-side timestamp of the autosave message.",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "string",
+          "description": "JSONB data containing the autosave message payload."
+        }
+      },
+      "required": [
+        "messageId",
+        "attemptId",
+        "questionId",
+        "clientTs",
+        "serverTs",
+        "payload"
+      ]
+    },
+    "AuditEvent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AuditEvent",
+      "type": "object",
+      "description": "Represents an audit event for tracking user actions and system changes.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the audit event entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who triggered the event. (Relationship: User 1:N AuditEvent)"
+        },
+        "eventType": {
+          "type": "string",
+          "description": "Type of the audit event (e.g., login, logout, create, update, delete)."
+        },
+        "eventData": {
+          "type": "string",
+          "description": "JSONB data containing details about the event."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp indicating when the event occurred.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "eventType",
+        "eventData",
+        "timestamp"
+      ]
+    },
+    "ProctorEvent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProctorEvent",
+      "type": "object",
+      "description": "Represents an event flagged during proctoring, such as focus lost or tab switch.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the proctor event entity."
+        },
+        "attemptId": {
+          "type": "string",
+          "description": "Reference to the Attempt being proctored. (Relationship: Attempt 1:N ProctorEvent)"
+        },
+        "eventType": {
+          "type": "string",
+          "description": "Type of the proctor event (e.g., focus lost, tab switch)."
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp indicating when the event occurred.",
+          "format": "date-time"
+        },
+        "proctorId": {
+          "type": "string",
+          "description": "Reference to the User who is proctoring. (Relationship: User 1:N ProctorEvent)"
+        }
+      },
+      "required": [
+        "id",
+        "attemptId",
+        "eventType",
+        "timestamp",
+        "proctorId"
+      ]
+    },
+    "MediaObject": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MediaObject",
+      "type": "object",
+      "description": "Represents a media object (image, video) uploaded to the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the media object entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User who uploaded the media. (Relationship: User 1:N MediaObject)"
+        },
+        "url": {
+          "type": "string",
+          "description": "URL of the media object in storage (e.g., S3)."
+        },
+        "mimeType": {
+          "type": "string",
+          "description": "MIME type of the media object."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the media object was uploaded.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "url",
+        "mimeType",
+        "createdAt"
+      ]
+    },
+    "GamificationPart": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "GamificationPart",
+      "type": "object",
+      "description": "Represents a car part that can be awarded through gamification.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the gamification part entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the car part (e.g., Wheel, Engine, Chassis)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the car part."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the image representing the car part."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "imageUrl"
+      ]
+    },
+    "UserCarProgress": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserCarProgress",
+      "type": "object",
+      "description": "Represents a user's progress in collecting car parts.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user car progress entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User. (Relationship: User 1:N UserCarProgress)"
+        },
+        "gamificationPartId": {
+          "type": "string",
+          "description": "Reference to the GamificationPart. (Relationship: GamificationPart 1:N UserCarProgress)"
+        },
+        "acquiredAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the car part was acquired.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "gamificationPartId",
+        "acquiredAt"
+      ]
+    },
+    "ProctorConsent": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ProctorConsent",
+      "type": "object",
+      "description": "Represents the explicit consent given by a user for proctoring.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the proctor consent entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User giving consent. (Relationship: User 1:N ProctorConsent)"
+        },
+        "examId": {
+          "type": "string",
+          "description": "Reference to the Exam. (Relationship: Exam 1:N ProctorConsent)"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp indicating when consent was given.",
+          "format": "date-time"
+        },
+        "consentVersion": {
+          "type": "string",
+          "description": "Version of the consent agreement."
+        },
+        "ip": {
+          "type": "string",
+          "description": "IP address of the user giving consent."
+        },
+        "userAgent": {
+          "type": "string",
+          "description": "User agent string of the user giving consent."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "examId",
+        "timestamp",
+        "consentVersion",
+        "ip",
+        "userAgent"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles.  Includes denormalized organization ID (`orgId`) for potential authorization checks at the user level.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/organizations/{organizationId}",
+        "definition": {
+          "entityName": "Organization",
+          "schema": {
+            "$ref": "#/backend/entities/Organization"
+          },
+          "description": "Stores organization information.",
+          "params": [
+            {
+              "name": "organizationId",
+              "description": "The unique identifier of the organization."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/quizzes/{quizId}",
+        "definition": {
+          "entityName": "Quiz",
+          "schema": {
+            "$ref": "#/backend/entities/Quiz"
+          },
+          "description": "Stores quiz definitions. Includes `authorId` to track quiz ownership.",
+          "params": [
+            {
+              "name": "quizId",
+              "description": "The unique identifier of the quiz."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/quiz_snapshots/{quizSnapshotId}",
+        "definition": {
+          "entityName": "QuizSnapshot",
+          "schema": {
+            "$ref": "#/backend/entities/QuizSnapshot"
+          },
+          "description": "Stores immutable snapshots of quizzes.",
+          "params": [
+            {
+              "name": "quizSnapshotId",
+              "description": "The unique identifier of the quiz snapshot."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/questions/{questionId}",
+        "definition": {
+          "entityName": "Question",
+          "schema": {
+            "$ref": "#/backend/entities/Question"
+          },
+          "description": "Stores individual question data.",
+          "params": [
+            {
+              "name": "questionId",
+              "description": "The unique identifier of the question."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/quiz_snapshots/{quizSnapshotId}/quiz_questions/{quizQuestionId}",
+        "definition": {
+          "entityName": "QuizQuestion",
+          "schema": {
+            "$ref": "#/backend/entities/QuizQuestion"
+          },
+          "description": "Stores the association between a quiz snapshot and a question, maintaining the order.",
+          "params": [
+            {
+              "name": "quizSnapshotId",
+              "description": "The unique identifier of the quiz snapshot."
+            },
+            {
+              "name": "quizQuestionId",
+              "description": "The unique identifier of the quiz question."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/exams/{examId}",
+        "definition": {
+          "entityName": "Exam",
+          "schema": {
+            "$ref": "#/backend/entities/Exam"
+          },
+          "description": "Stores exam instance information. Includes `proctorId` to define the proctor.",
+          "params": [
+            {
+              "name": "examId",
+              "description": "The unique identifier of the exam."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/attempts/{attemptId}",
+        "definition": {
+          "entityName": "Attempt",
+          "schema": {
+            "$ref": "#/backend/entities/Attempt"
+          },
+          "description": "Stores user attempt information, nested under the user. Access is restricted to the user. Includes `examId` to reference the exam.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "attemptId",
+              "description": "The unique identifier of the attempt."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/attempts/{attemptId}/answers/{answerId}",
+        "definition": {
+          "entityName": "Answer",
+          "schema": {
+            "$ref": "#/backend/entities/Answer"
+          },
+          "description": "Stores answers to questions within a user attempt.  Nested under `users/{userId}/attempts/{attemptId}` ensuring only the user can access them. Includes `questionId` for reference.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "attemptId",
+              "description": "The unique identifier of the attempt."
+            },
+            {
+              "name": "answerId",
+              "description": "The unique identifier of the answer."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/attempts/{attemptId}/autosave_messages/{messageId}",
+        "definition": {
+          "entityName": "AutosaveMessage",
+          "schema": {
+            "$ref": "#/backend/entities/AutosaveMessage"
+          },
+          "description": "Stores autosave messages for audit purposes. Nested under `/users/{userId}/attempts/{attemptId}` to ensure only the user can access them. Includes `questionId` for context.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "attemptId",
+              "description": "The unique identifier of the attempt."
+            },
+            {
+              "name": "messageId",
+              "description": "The unique identifier of the autosave message."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/audit_events/{auditEventId}",
+        "definition": {
+          "entityName": "AuditEvent",
+          "schema": {
+            "$ref": "#/backend/entities/AuditEvent"
+          },
+          "description": "Stores audit events for tracking user actions. Includes `userId` to identify the user who triggered the event.",
+          "params": [
+            {
+              "name": "auditEventId",
+              "description": "The unique identifier of the audit event."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/attempts/{attemptId}/proctor_events/{proctorEventId}",
+        "definition": {
+          "entityName": "ProctorEvent",
+          "schema": {
+            "$ref": "#/backend/entities/ProctorEvent"
+          },
+          "description": "Stores proctoring events related to an attempt. Includes `proctorId` to identify the proctor and `attemptId` for context.",
+          "params": [
+            {
+              "name": "attemptId",
+              "description": "The unique identifier of the attempt."
+            },
+            {
+              "name": "proctorEventId",
+              "description": "The unique identifier of the proctor event."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/media_objects/{mediaObjectId}",
+        "definition": {
+          "entityName": "MediaObject",
+          "schema": {
+            "$ref": "#/backend/entities/MediaObject"
+          },
+          "description": "Stores media objects uploaded by users. Includes `userId` to track ownership.",
+          "params": [
+            {
+              "name": "mediaObjectId",
+              "description": "The unique identifier of the media object."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/gamification_parts/{gamificationPartId}",
+        "definition": {
+          "entityName": "GamificationPart",
+          "schema": {
+            "$ref": "#/backend/entities/GamificationPart"
+          },
+          "description": "Stores available gamification parts.",
+          "params": [
+            {
+              "name": "gamificationPartId",
+              "description": "The unique identifier of the gamification part."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/car_progress/{userCarProgressId}",
+        "definition": {
+          "entityName": "UserCarProgress",
+          "schema": {
+            "$ref": "#/backend/entities/UserCarProgress"
+          },
+          "description": "Stores user's car progress nested under the user. Access restricted to user only. Includes `gamificationPartId` to link to the awarded part.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "userCarProgressId",
+              "description": "The unique identifier of the user car progress."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/proctor_consents/{proctorConsentId}",
+        "definition": {
+          "entityName": "ProctorConsent",
+          "schema": {
+            "$ref": "#/backend/entities/ProctorConsent"
+          },
+          "description": "Stores proctor consent records given by the user. Nested under /users/{userId} restricting access to the user only. Includes `examId` to specify the exam the consent applies to.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "proctorConsentId",
+              "description": "The unique identifier of the proctor consent."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure is designed to prioritize authorization independence, clarity, and scalability. It utilizes denormalization for authorization, structural segregation for homogeneous security postures, and consistent access modeling based on path-based ownership and membership maps. This approach eliminates `get()` calls in security rules, enabling atomic operations and simplified security management. All collections are designed to ensure consistent security requirements for every document within them.\n\n**Authorization Independence:**  Authorization data (e.g., user roles, organization memberships) is denormalized into child documents when needed. For instance, if access to `Quizzes` depended on `Organization` membership, the `orgId` is duplicated in the `Quizzes` documents.\n\n**Structural Segregation:**  Data with different access requirements are stored in different collections. For example, user-specific data (attempts, proctor consent) are stored under the `/users/{userId}` path, ensuring only the user can access it.\n\n**QAPs Support:**  The structure supports secure `list` operations through path-based ownership and collection group queries where appropriate. By nesting data, ownership is clearly defined in the path. Utilizing nested collection group queries to get collections of the same type across multiple parent documents."
+  }
+}

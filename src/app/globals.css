@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 227 68% 10%;
+    --foreground: 220 67% 99%;
+    --card: 227 60% 13%;
+    --card-foreground: 220 67% 99%;
+    --popover: 227 68% 10%;
+    --popover-foreground: 220 67% 99%;
+    --primary: 172 100% 38%;
+    --primary-foreground: 227 68% 10%;
+    --secondary: 227 50% 20%;
+    --secondary-foreground: 220 67% 99%;
+    --muted: 227 50% 20%;
+    --muted-foreground: 220 20% 70%;
+    --accent: 227 50% 25%;
+    --accent-foreground: 220 67% 99%;
+    --destructive: 39 100% 56%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 227 50% 20%;
+    --input: 227 50% 20%;
+    --ring: 172 100% 38%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --radius: 0.5rem;
+    --star-color: hsl(var(--primary));
+  }
+  .light {
+    --background: 220 67% 99%;
+    --foreground: 215 10% 46%;
+    --card: 220 67% 99%;
+    --card-foreground: 215 10% 46%;
+    --popover: 220 67% 99%;
+    --popover-foreground: 215 10% 46%;
+    --primary: 172 100% 38%;
+    --primary-foreground: 227 68% 10%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 215 10% 30%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 10% 55%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 215 10% 30%;
+    --destructive: 39 100% 56%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 172 100% 38%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --star-color: hsl(var(--primary));
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground border-border;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+}
+
+.pixel-stars-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: -1;
+  overflow: hidden;
+}
+
+#stars, #stars2, #stars3 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: transparent;
+}
+
+#stars {
+  width: 1px;
+  height: 1px;
+  box-shadow: var(--shadows1);
+  animation: animStar 50s linear infinite;
+}
+
+#stars:after {
+  content: " ";
+  position: absolute;
+  top: 2000px;
+  width: 1px;
+  height: 1px;
+  background: transparent;
+  box-shadow: var(--shadows1);
+}
+
+#stars2 {
+  width: 2px;
+  height: 2px;
+  box-shadow: var(--shadows2);
+  animation: animStar 100s linear infinite;
+}
+
+#stars2:after {
+  content: " ";
+  position: absolute;
+  top: 2000px;
+  width: 2px;
+  height: 2px;
+  background: transparent;
+  box-shadow: var(--shadows2);
+}
+
+#stars3 {
+  width: 3px;
+  height: 3px;
+  box-shadow: var(--shadows3);
+  animation: animStar 150s linear infinite;
+}
+
+#stars3:after {
+  content: " ";
+  position: absolute;
+  top: 2000px;
+  width: 3px;
+  height: 3px;
+  background: transparent;
+  box-shadow: var(--shadows3);
+}
+
+@keyframes animStar {
+  from {
+    transform: translateY(0px);
+  }
+  to {
+    transform: translateY(-2000px);
+  }
+}
