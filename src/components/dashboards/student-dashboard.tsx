@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ArrowRight, BookOpen, Clock, Award, Car, Loader2, Target, TrendingDown, TrendingUp, Brain, Sparkles, Calendar, History, RotateCcw, Plus } from 'lucide-react';
+import { ArrowRight, BookOpen, Clock, Award, Car, Loader2, Target, TrendingDown, TrendingUp, Brain, Sparkles, Calendar, History, RotateCcw, Plus, Coins, Wrench, Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,8 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { analyzeStudentPerformance, type AnalyzeStudentPerformanceOutput } from '@/ai/flows/student-analyzes-performance';
 import { EducationalLevelDialog, useEducationalLevelCheck } from './educational-level-dialog';
 import Link from 'next/link';
+import { useGarage } from '@/hooks/use-garage';
+import { CAR_PARTS_CONFIG } from '@/lib/racing-types';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -46,21 +48,24 @@ const itemVariants = {
 };
 
 function MyGarage({ attempts, isLoading }: { attempts: Attempt[] | null, isLoading: boolean }) {
-    const earnedParts = useMemo(() => {
-        if (!attempts) return [];
-        return attempts.map(attempt => attempt.partEarned).filter(Boolean) as string[];
-    }, [attempts]);
+    const { garage, carStats, loading: garageLoading } = useGarage();
+    const router = useRouter();
 
-    const progressPercentage = useMemo(() => {
-        if (earnedParts.length === 0) return 0;
-        return Math.round((earnedParts.length / CAR_PARTS.length) * 100);
-    }, [earnedParts]);
+    // Calculate total coins across all parts
+    const totalCoins = useMemo(() => {
+        if (!garage) return 0;
+        return Object.values(garage.parts).reduce((sum, coins) => sum + coins, 0);
+    }, [garage]);
 
-    const nextPartToEarn = useMemo(() => {
-        return CAR_PARTS.find(part => !earnedParts.includes(part));
-    }, [earnedParts]);
+    // Get highest level part
+    const topPart = useMemo(() => {
+        if (!garage) return null;
+        const entries = Object.entries(garage.levels);
+        const sorted = entries.sort(([, a], [, b]) => b - a);
+        return sorted[0];
+    }, [garage]);
 
-    if (isLoading) {
+    if (isLoading || garageLoading) {
         return (
             <Card className="h-full bg-card/80 backdrop-blur-sm">
                 <CardHeader>
@@ -68,41 +73,147 @@ function MyGarage({ attempts, isLoading }: { attempts: Attempt[] | null, isLoadi
                     <Skeleton className="h-4 w-3/4" />
                 </CardHeader>
                 <CardContent>
-                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-32 w-full" />
                     <Skeleton className="h-4 w-full mt-4" />
                 </CardContent>
                 <CardFooter>
-                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-10 w-full" />
                 </CardFooter>
             </Card>
         )
     }
 
+    if (!garage) {
+        return (
+            <Card className="h-full bg-card/80 backdrop-blur-sm">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <Car className="w-5 h-5" />
+                        My Racing Garage
+                    </CardTitle>
+                    <CardDescription>Build and upgrade your racing car</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground text-center py-8">
+                        Complete quizzes to start earning car parts!
+                    </p>
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
-        <Card className="h-full bg-card/80 backdrop-blur-sm">
+        <Card className="h-full bg-gradient-to-br from-card/80 to-card backdrop-blur-sm border-primary/20">
             <CardHeader>
-                <CardTitle>My Garage</CardTitle>
-                <CardDescription>Your car assembly progress.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-center justify-center p-6 bg-muted/50 rounded-lg">
-                    <Car className="h-20 w-20 text-muted-foreground" />
-                </div>
-                <div className="mt-4">
-                    <div className="flex justify-between text-sm text-muted-foreground mb-1">
-                        <span>Progress</span>
-                        <span>{progressPercentage}%</span>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle className="flex items-center gap-2">
+                            <Car className="w-5 h-5" />
+                            {garage.carName}
+                        </CardTitle>
+                        <CardDescription>Your racing machine</CardDescription>
                     </div>
-                    <Progress value={progressPercentage} className="h-2" />
+                    <Badge variant="outline" className="bg-yellow-500/10 border-yellow-500/50">
+                        <Coins className="w-3 h-3 mr-1" />
+                        {totalCoins} coins
+                    </Badge>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {/* Car Preview */}
+                <div className="relative h-24 bg-gradient-to-b from-muted/30 to-muted/50 rounded-lg overflow-hidden">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <motion.div
+                            animate={{ 
+                                x: [0, 3, 0, -3, 0],
+                            }}
+                            transition={{ 
+                                duration: 2, 
+                                repeat: Infinity,
+                                ease: 'easeInOut'
+                            }}
+                        >
+                            <svg viewBox="0 0 200 80" className="w-40 h-auto drop-shadow-lg">
+                                {/* Car body */}
+                                <path
+                                    d="M20 50 L35 50 L45 30 L90 25 L130 25 L155 35 L180 50 L180 55 L20 55 Z"
+                                    fill={garage.carColor}
+                                    stroke={garage.carColor}
+                                    strokeWidth="2"
+                                />
+                                {/* Windows */}
+                                <path d="M50 32 L88 28 L88 45 L50 45 Z" fill="#1e293b" opacity="0.8" />
+                                <path d="M92 28 L125 28 L145 40 L92 45 Z" fill="#1e293b" opacity="0.8" />
+                                {/* Wheels */}
+                                <circle cx="50" cy="55" r="12" fill="#1f2937" stroke="#374151" strokeWidth="3" />
+                                <circle cx="50" cy="55" r="6" fill="#6b7280" />
+                                <circle cx="150" cy="55" r="12" fill="#1f2937" stroke="#374151" strokeWidth="3" />
+                                <circle cx="150" cy="55" r="6" fill="#6b7280" />
+                                {/* Headlight */}
+                                <ellipse cx="175" cy="48" rx="4" ry="3" fill="#fef08a" />
+                            </svg>
+                        </motion.div>
+                    </div>
+                    <div className="absolute bottom-2 left-0 right-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent" />
+                </div>
+
+                {/* Stats Overview */}
+                {carStats && (
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-1 p-2 bg-red-500/10 rounded">
+                            <Zap className="w-3 h-3 text-red-500" />
+                            <span className="text-muted-foreground">Speed:</span>
+                            <span className="font-bold">{carStats.speed.toFixed(0)}</span>
+                        </div>
+                        <div className="flex items-center gap-1 p-2 bg-blue-500/10 rounded">
+                            <TrendingUp className="w-3 h-3 text-blue-500" />
+                            <span className="text-muted-foreground">Power:</span>
+                            <span className="font-bold">{carStats.totalPower.toFixed(0)}</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Top Part Display */}
+                {topPart && (
+                    <div className="flex items-center justify-between p-2 bg-muted/30 rounded text-sm">
+                        <div className="flex items-center gap-2">
+                            <span className="text-2xl">{CAR_PARTS_CONFIG[topPart[0] as keyof typeof CAR_PARTS_CONFIG]?.icon}</span>
+                            <div>
+                                <p className="font-medium text-xs">Top Upgrade</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {CAR_PARTS_CONFIG[topPart[0] as keyof typeof CAR_PARTS_CONFIG]?.name} Lv.{topPart[1]}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Coins by Part */}
+                <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">Part Coins</p>
+                    <div className="grid grid-cols-3 gap-1">
+                        {Object.entries(garage.parts).slice(0, 6).map(([partType, coins]) => (
+                            <div 
+                                key={partType} 
+                                className="flex items-center gap-1 p-1 bg-muted/30 rounded text-xs"
+                                title={CAR_PARTS_CONFIG[partType as keyof typeof CAR_PARTS_CONFIG]?.name}
+                            >
+                                <span className="text-sm">{CAR_PARTS_CONFIG[partType as keyof typeof CAR_PARTS_CONFIG]?.icon}</span>
+                                <span className="font-medium">{coins}</span>
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </CardContent>
             <CardFooter>
-                 {nextPartToEarn ? (
-                     <p className="text-sm text-muted-foreground">Continue quizzing to earn the <span className="font-semibold text-primary">{nextPartToEarn}!</span></p>
-                 ) : (
-                    <p className="text-sm font-semibold text-green-500">Congratulations! You've collected all parts!</p>
-                 )}
+                <Button 
+                    className="w-full" 
+                    onClick={() => router.push('/dashboard/racing')}
+                    variant="default"
+                >
+                    <Wrench className="w-4 h-4 mr-2" />
+                    Open Garage
+                </Button>
             </CardFooter>
         </Card>
     );

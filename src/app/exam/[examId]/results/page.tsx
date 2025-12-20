@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { useEffect, useState } from 'react';
 import { gradeSubmission } from '@/ai/flows/student-grades-submission';
 import { CAR_PARTS } from '@/lib/car-parts';
-import { Loader2, CheckCircle, XCircle, Award, Car, Sparkles, TrendingUp, Minus } from 'lucide-react';
+import { calculatePartReward, CAR_PARTS_CONFIG, type CarPartType } from '@/lib/racing-types';
+import { Loader2, CheckCircle, XCircle, Award, Car, Sparkles, TrendingUp, Minus, Coins, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Difficulty badge config
@@ -107,6 +108,13 @@ export default function ExamResultsPage() {
                     const nextPart = CAR_PARTS[earnedPartsCount % CAR_PARTS.length];
                     const partEarned = result.finalScore > (attempt.totalQuestions * 10 * 0.7) ? nextPart : null;
 
+                    // Calculate racing car part reward
+                    const racingReward = calculatePartReward(
+                        result.finalScore, 
+                        attempt.totalQuestions,
+                        attempt.isAdaptive ?? false
+                    );
+
                     if (attemptRef) {
                         const updateData: Record<string, any> = {
                             status: 'Completed',
@@ -123,7 +131,28 @@ export default function ExamResultsPage() {
                         if (partEarned) {
                             updateData.partEarned = partEarned;
                         }
+                        if (racingReward) {
+                            updateData.racingReward = racingReward;
+                        }
                         await updateDoc(attemptRef, updateData);
+                        
+                        // Update user's garage with the racing coins
+                        if (racingReward) {
+                            try {
+                                const garageRef = doc(firestore, 'garages', attempt.studentId);
+                                const garageSnap = await getDoc(garageRef);
+                                if (garageSnap.exists()) {
+                                    const garageData = garageSnap.data();
+                                    const currentCoins = garageData.parts?.[racingReward.partType] || 0;
+                                    await updateDoc(garageRef, {
+                                        [`parts.${racingReward.partType}`]: currentCoins + racingReward.coins,
+                                        updatedAt: new Date().toISOString(),
+                                    });
+                                }
+                            } catch (garageError) {
+                                console.warn('Could not update garage:', garageError);
+                            }
+                        }
                     }
                 } catch (e: any) {
                     setError('Failed to grade submission. Please contact your instructor.');
@@ -227,6 +256,33 @@ export default function ExamResultsPage() {
                             </h3>
                              <p className="text-sm text-muted-foreground">You earned the <span className="font-bold text-primary">{attempt.partEarned}</span> for your car!</p>
                              <Car className="h-8 w-8 mx-auto mt-2 text-primary" />
+                        </div>
+                    )}
+
+                    {/* Racing Coins Reward */}
+                    {(attempt as any).racingReward && (
+                        <div className="text-center p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                            <h3 className="font-semibold flex items-center justify-center gap-2">
+                                <Coins className="h-5 w-5 text-yellow-500" />
+                                Racing Coins Earned!
+                            </h3>
+                            <div className="flex items-center justify-center gap-3 mt-2">
+                                <span className="text-3xl">
+                                    {CAR_PARTS_CONFIG[(attempt as any).racingReward.partType as CarPartType]?.icon || '🔧'}
+                                </span>
+                                <div className="text-left">
+                                    <p className="font-bold text-lg text-yellow-600">
+                                        +{(attempt as any).racingReward.coins} {CAR_PARTS_CONFIG[(attempt as any).racingReward.partType as CarPartType]?.name || 'Part'} Coins
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Use them in the garage to upgrade your racing car!
+                                    </p>
+                                </div>
+                            </div>
+                            <Badge variant="outline" className="mt-2 bg-yellow-500/5">
+                                <Wrench className="h-3 w-3 mr-1" />
+                                Visit Dashboard → Racing → Garage
+                            </Badge>
                         </div>
                     )}
 

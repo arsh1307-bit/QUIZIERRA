@@ -108,7 +108,8 @@ export type Attempt = {
     startedAt: string;
     completedAt?: string;
     examTitle?: string; // Denormalized for easy display
-    partEarned?: string; // For gamification
+    partEarned?: string; // For gamification (old system)
     isAdaptive?: boolean; // Whether this was an adaptive quiz attempt
     adaptivePath?: DifficultyLevel[]; // Track the difficulty path taken
+    racingReward?: { partType: string; coins: number }; // Racing game coins reward
 };

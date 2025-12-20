@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { LifeBuoy, LogOut, Menu, User as UserIcon, Bell, BookCopy, LayoutDashboard, Settings, Users, Shield, Pencil } from "lucide-react";
+import { LifeBuoy, LogOut, Menu, User as UserIcon, Bell, BookCopy, LayoutDashboard, Settings, Users, Shield, Pencil, Car } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../ui/sheet";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
@@ -34,6 +34,7 @@ const dashboardNavItemsByRole: Record<UserRole, { href: string; icon: React.Elem
         { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
         { href: '/dashboard/quizzes', icon: BookCopy, label: 'My Quizzes' },
         { href: '/dashboard/results', icon: BookCopy, label: 'Results' },
+        { href: '/dashboard/racing', icon: Car, label: 'Racing' },
         { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
     ],
     instructor: [
@@ -41,6 +42,7 @@ const dashboardNavItemsByRole: Record<UserRole, { href: string; icon: React.Elem
         { href: '/dashboard/quizzes', icon: BookCopy, label: 'Quizzes' },
         { href: '/dashboard/students', icon: Users, label: 'Students' },
         { href: '/dashboard/results', icon: BookCopy, label: 'Results' },
+        { href: '/dashboard/racing', icon: Car, label: 'Racing' },
         { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
     ],
     admin: [
@@ -48,6 +50,7 @@ const dashboardNavItemsByRole: Record<UserRole, { href: string; icon: React.Elem
         { href: '/dashboard/users', icon: Users, label: 'Manage Users' },
         { href: '/dashboard/system', icon: Settings, label: 'System Settings' },
         { href: '/dashboard/billing', icon: Shield, label: 'Billing' },
+        { href: '/dashboard/racing', icon: Car, label: 'Racing' },
     ],
 };
 
