@@ -12,6 +12,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '../ui/form';
 import { Input } from '../ui/input';
 import type { GenerateQuizOutput } from '@/ai/flows/instructor-generates-quiz-from-topic';
+<<<<<<< HEAD
+=======
+import { AnswerReview } from '../quiz/answer-review';
+import type { KeyAnswer } from '@/app/api/generate-key-answers/route';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, addDoc, doc, updateDoc, writeBatch, arrayUnion, getDoc } from 'firebase/firestore';
+import type { UploadedMaterial } from '@/lib/types';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
 
 const formSchema = z.object({
   numMcq: z.coerce.number().min(0).max(20),
@@ -23,11 +33,75 @@ const formSchema = z.object({
 
 type GenerateFromFileProps = {
     onQuizGenerated: (data: GenerateQuizOutput) => void;
+<<<<<<< HEAD
 }
 
 export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+=======
+    showAnswerReview?: boolean; // New prop to enable answer review stage
+}
+
+export function GenerateFromFile({ onQuizGenerated, showAnswerReview = true }: GenerateFromFileProps) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const router = useRouter();
+  const [file, setFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [step, setStep] = useState<'upload' | 'review' | 'generating'>('upload');
+  const [keyAnswers, setKeyAnswers] = useState<KeyAnswer[]>([]);
+  const [extractedText, setExtractedText] = useState<string>('');
+  const [materialId, setMaterialId] = useState<string | null>(null);
+
+  // Resume logic: check URL params for resume
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const resumeId = new URLSearchParams(window.location.search).get('resume');
+    const resumeStep = new URLSearchParams(window.location.search).get('step');
+    
+    if (resumeId && firestore && user) {
+      const loadResumeMaterial = async () => {
+        try {
+          const materialDocRef = doc(firestore, 'uploadedMaterials', resumeId);
+          const materialDoc = await getDoc(materialDocRef);
+          
+          if (materialDoc.exists()) {
+            const material = { id: materialDoc.id, ...materialDoc.data() } as UploadedMaterial;
+            
+            // Verify ownership
+            if (material.userId !== user.uid) {
+              console.error('Material does not belong to user');
+              return;
+            }
+            
+            setMaterialId(material.id);
+            setExtractedText(material.fullTextStorage || material.previewText || '');
+            
+            if (resumeStep === 'review' && material.keyAnswers) {
+              setKeyAnswers(material.keyAnswers.map(ka => ({
+                id: ka.id,
+                topic: ka.topic,
+                explanation: ka.explanation,
+                sourceSnippet: ka.sourceSnippet,
+              })));
+              setStep('review');
+            } else if (resumeStep === 'generate' && material.materialStatus === 'answersReviewed') {
+              // Resume quiz generation
+              const formValues = form.getValues();
+              await generateQuizFromText(material.fullTextStorage || material.previewText || '', formValues);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to resume:', error);
+        }
+      };
+      
+      loadResumeMaterial();
+    }
+  }, [firestore, user]);
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -81,6 +155,7 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
             throw new Error('Could not extract any text from the file.');
         }
 
+<<<<<<< HEAD
         const aiResponse = await fetch('/api/generate-quiz', {
             method: 'POST',
             headers: {
@@ -104,6 +179,69 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
             onQuizGenerated(aiResult as GenerateQuizOutput);
         } else {
             throw new Error('The AI could not generate questions from the provided file. The content might be too short or unclear.');
+=======
+        setExtractedText(textContent);
+
+        // Save uploaded material to Firestore
+        if (user && firestore) {
+            try {
+                const materialData: Omit<UploadedMaterial, 'id'> = {
+                    userId: user.uid,
+                    fileName: file.name,
+                    fileType: file.type || 'unknown',
+                    uploadedAt: new Date().toISOString(),
+                    quizCompleted: 0,
+                    previewText: textContent.substring(0, 10000), // First 10k chars for UI
+                    fullTextStorage: textContent, // Full text for AI generation
+                    materialStatus: 'uploaded',
+                };
+                const materialRef = await addDoc(collection(firestore, 'uploadedMaterials'), materialData);
+                setMaterialId(materialRef.id);
+            } catch (error) {
+                console.error('Failed to save material:', error);
+            }
+        }
+
+        // If answer review is enabled, generate key answers first
+        if (showAnswerReview) {
+            const keyAnswersResponse = await fetch('/api/generate-key-answers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: textContent }),
+            });
+
+            if (keyAnswersResponse.ok) {
+                const keyAnswersData = await keyAnswersResponse.json();
+                const answers = keyAnswersData.keyAnswers || [];
+                setKeyAnswers(answers);
+                
+                // Update material with key answers (status will be updated after review)
+                if (materialId && firestore && user) {
+                    try {
+                        await updateDoc(doc(firestore, 'uploadedMaterials', materialId), {
+                            keyAnswers: answers.map(a => ({
+                                id: a.id,
+                                topic: a.topic,
+                                explanation: a.explanation,
+                                sourceSnippet: a.sourceSnippet,
+                                status: undefined, // Will be set after student reviews
+                            })),
+                        });
+                    } catch (error) {
+                        console.error('Failed to update material with key answers:', error);
+                    }
+                }
+                
+                setStep('review');
+                toast({ title: 'Key Answers Generated', description: 'Review the concepts before generating your quiz.' });
+            } else {
+                // If key answers generation fails, proceed directly to quiz generation
+                await generateQuizFromText(textContent, values);
+            }
+        } else {
+            // Skip answer review, go directly to quiz generation
+            await generateQuizFromText(textContent, values);
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
         }
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Generation Failed', description: error.message || 'An unexpected error occurred.' });
@@ -112,10 +250,160 @@ export function GenerateFromFile({ onQuizGenerated }: GenerateFromFileProps) {
     }
   };
 
+<<<<<<< HEAD
+=======
+  const generateQuizFromText = async (textContent: string, values: z.infer<typeof formSchema>) => {
+    setStep('generating');
+    
+    // Get flagged topics for adaptive generation
+    const flaggedTopics = keyAnswers
+        .filter(a => a.status === 'flagged')
+        .map(a => a.topic);
+    
+    const aiResponse = await fetch('/api/generate-quiz', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            context: textContent,
+            numMcq: values.numMcq,
+            numText: values.numText,
+            weakTopics: flaggedTopics, // Pass flagged topics for adaptive generation
+        }),
+    });
+
+    const aiResult = (await aiResponse.json()) as GenerateQuizOutput | { error?: string };
+
+    if (!aiResponse.ok) {
+        throw new Error((aiResult as { error?: string }).error || 'Failed to generate quiz from file.');
+    }
+
+    if ('questions' in aiResult && Array.isArray(aiResult.questions) && aiResult.questions.length > 0) {
+        // Auto-save quiz and redirect to exam (NO manual review for students)
+        await saveQuizAndRedirect(aiResult as GenerateQuizOutput);
+    } else {
+        throw new Error('The AI could not generate questions from the provided file. The content might be too short or unclear.');
+    }
+  };
+
+  const saveQuizAndRedirect = async (quizData: GenerateQuizOutput) => {
+    if (!user || !firestore) {
+        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to save a quiz.' });
+        return;
+    }
+
+    try {
+        const batch = writeBatch(firestore);
+
+        // Create quiz document
+        const quizCollectionRef = collection(firestore, 'quizzes');
+        const newQuizDocRef = doc(quizCollectionRef);
+
+        const quizPayload = {
+            id: newQuizDocRef.id,
+            title: quizData.title,
+            createdBy: user.uid,
+            createdAt: new Date().toISOString(),
+            questionIds: quizData.questions.map(q => q.id),
+            description: `A practice quiz with ${quizData.questions.length} questions.`,
+        };
+        batch.set(newQuizDocRef, quizPayload);
+
+        // Create question documents
+        const questionsCollectionRef = collection(newQuizDocRef, 'questions');
+        quizData.questions.forEach(question => {
+            const questionDocRef = doc(questionsCollectionRef, question.id);
+            const questionPayload = {
+                id: question.id,
+                type: question.type,
+                content: question.content,
+                maxScore: question.maxScore,
+                quizId: newQuizDocRef.id,
+                ...(question.options && { options: question.options }),
+                ...(question.correctAnswer && { correctAnswer: question.correctAnswer }),
+            };
+            batch.set(questionDocRef, questionPayload);
+        });
+
+        await batch.commit();
+
+        // Update material with quiz reference
+        if (materialId) {
+            await updateDoc(doc(firestore, 'uploadedMaterials', materialId), {
+                quizId: newQuizDocRef.id,
+                materialStatus: 'quizGenerated',
+                linkedQuizzes: arrayUnion(newQuizDocRef.id),
+            });
+        }
+
+        toast({ title: 'Quiz Created!', description: 'Redirecting to quiz...' });
+        
+        // Redirect directly to exam page (NO review step for students)
+        router.push(`/exam/${newQuizDocRef.id}/page`);
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error', description: error.message || 'Failed to save quiz.' });
+    }
+  };
+
+  const handleAnswerReviewComplete = async (reviewStatus?: Array<{ id: string; status: 'approved' | 'flagged' }>) => {
+    if (!extractedText) return;
+    setIsProcessing(true);
+    try {
+        // Update material with review status
+        if (materialId && firestore && reviewStatus) {
+            try {
+                const updatedKeyAnswers = keyAnswers.map(answer => {
+                    const review = reviewStatus.find(r => r.id === answer.id);
+                    return {
+                        ...answer,
+                        status: review?.status,
+                    };
+                });
+                
+                await updateDoc(doc(firestore, 'uploadedMaterials', materialId), {
+                    keyAnswers: updatedKeyAnswers,
+                    materialStatus: 'answersReviewed',
+                });
+            } catch (error) {
+                console.error('Failed to update review status:', error);
+            }
+        }
+        
+        const formValues = form.getValues();
+        await generateQuizFromText(extractedText, formValues);
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Generation Failed', description: error.message || 'An unexpected error occurred.' });
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  const handleAnswerReviewBack = () => {
+    setStep('upload');
+    setKeyAnswers([]);
+  };
+
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
   const removeFile = () => {
     setFile(null);
   };
 
+<<<<<<< HEAD
+=======
+  // Show answer review stage if enabled and key answers are available
+  if (step === 'review' && keyAnswers.length > 0) {
+    return (
+      <AnswerReview
+        keyAnswers={keyAnswers}
+        sourceFileName={file?.name}
+        onComplete={handleAnswerReviewComplete}
+        onBack={handleAnswerReviewBack}
+      />
+    );
+  }
+
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
   return (
     <div className="space-y-6">
       {!file && (

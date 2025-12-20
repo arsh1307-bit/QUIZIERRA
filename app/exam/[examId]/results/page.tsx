@@ -8,7 +8,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
 // Grade submissions via Python backend proxy
 import { CAR_PARTS } from '@/lib/car-parts';
+<<<<<<< HEAD
 import { Loader2, CheckCircle, XCircle, Award, Car } from 'lucide-react';
+=======
+import { Loader2, CheckCircle, XCircle, Award, Car, FileText, BookOpen } from 'lucide-react';
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
 import { Button } from '@/components/ui/button';
 
 function ResultSkeleton() {
@@ -94,6 +98,38 @@ export default function ExamResultsPage() {
                         }
                         await updateDoc(attemptRef, updateData);
                     }
+<<<<<<< HEAD
+=======
+
+                    // Update quizCompleted percentage in UploadedMaterial
+                    // Find material linked to this quiz
+                    if (examId && firestore) {
+                        try {
+                            const materialsQuery = query(
+                                collection(firestore, 'uploadedMaterials'),
+                                where('quizId', '==', examId)
+                            );
+                            const materialsSnapshot = await getDocs(materialsQuery);
+                            
+                            if (!materialsSnapshot.empty) {
+                                const materialDoc = materialsSnapshot.docs[0];
+                                const correctCount = result.gradedAnswers.filter((g: any) => g.isCorrect).length;
+                                const totalQuestions = result.gradedAnswers.length;
+                                const quizCompleted = totalQuestions > 0 
+                                    ? Math.round((correctCount / totalQuestions) * 100) 
+                                    : 0;
+                                
+                                await updateDoc(doc(firestore, 'uploadedMaterials', materialDoc.id), {
+                                    quizCompleted,
+                                    materialStatus: 'quizCompleted',
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Failed to update material progress:', error);
+                            // Non-critical error, don't block user
+                        }
+                    }
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
                 } catch (e: any) {
                     setError('Failed to grade submission. Please contact your instructor.');
                     console.error(e);
@@ -161,7 +197,11 @@ export default function ExamResultsPage() {
                     <div className="space-y-4">
                         <h3 className="font-semibold text-lg">Detailed Breakdown</h3>
                         {gradingResult.gradedAnswers.map((gradedAnswer, index) => (
+<<<<<<< HEAD
                              <Card key={gradedAnswer.questionId} className="p-4">
+=======
+                             <Card key={gradedAnswer.questionId} className={`p-4 ${!gradedAnswer.isCorrect ? 'border-destructive/50 bg-destructive/5' : ''}`}>
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
                                 <div className="flex justify-between items-start">
                                     <p className="font-medium flex-1 pr-4">{index + 1}. {gradedAnswer.questionContent}</p>
                                     <div className="flex items-center gap-2">
@@ -169,8 +209,48 @@ export default function ExamResultsPage() {
                                         <span className={`font-bold ${gradedAnswer.isCorrect ? 'text-green-500' : 'text-destructive'}`}>{gradedAnswer.score.toFixed(1)}/10</span>
                                     </div>
                                 </div>
+<<<<<<< HEAD
                                 <p className="text-sm text-muted-foreground mt-2">Your answer: <span className="text-foreground">{Array.isArray(gradedAnswer.answer) ? gradedAnswer.answer.join(', ') : gradedAnswer.answer}</span></p>
                                 <p className="text-xs text-blue-500 bg-blue-500/10 rounded-full px-2 py-0.5 mt-2 inline-block">Justification: {gradedAnswer.justification}</p>
+=======
+                                
+                                {!gradedAnswer.isCorrect && (
+                                    <div className="mt-4 space-y-3 p-3 bg-muted/50 rounded-lg border border-destructive/20">
+                                        <div>
+                                            <p className="text-sm font-medium text-muted-foreground mb-1">❌ Your answer:</p>
+                                            <p className="text-sm text-foreground">{Array.isArray(gradedAnswer.answer) ? gradedAnswer.answer.join(', ') : gradedAnswer.answer || 'No answer provided'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-muted-foreground mb-1">✅ Correct answer:</p>
+                                            <p className="text-sm text-green-600 font-medium">{gradedAnswer.correctAnswer || 'Not available'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-medium text-muted-foreground mb-1">💡 Explanation:</p>
+                                            <p className="text-sm text-foreground">{gradedAnswer.justification}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 pt-2 border-t border-border">
+                                            <FileText className="h-4 w-4 text-muted-foreground" />
+                                            <p className="text-xs text-muted-foreground">Reference from uploaded content</p>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="w-full mt-2"
+                                            onClick={() => router.push(`/dashboard/practice-mode?topic=${encodeURIComponent(gradedAnswer.questionContent.substring(0, 50))}`)}
+                                        >
+                                            <BookOpen className="h-4 w-4 mr-2" />
+                                            Practice Similar Question
+                                        </Button>
+                                    </div>
+                                )}
+                                
+                                {gradedAnswer.isCorrect && (
+                                    <div className="mt-2">
+                                        <p className="text-sm text-muted-foreground">Your answer: <span className="text-foreground">{Array.isArray(gradedAnswer.answer) ? gradedAnswer.answer.join(', ') : gradedAnswer.answer}</span></p>
+                                        <p className="text-xs text-blue-500 bg-blue-500/10 rounded-full px-2 py-0.5 mt-2 inline-block">Justification: {gradedAnswer.justification}</p>
+                                    </div>
+                                )}
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
                            </Card>
                         ))}
                     </div>

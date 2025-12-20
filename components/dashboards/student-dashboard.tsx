@@ -19,6 +19,11 @@ import * as z from 'zod';
 import { toast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+<<<<<<< HEAD
+=======
+import { UploadedMaterials } from './uploaded-materials';
+import { AnalyticsDashboard } from './analytics-dashboard';
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -330,6 +335,19 @@ export function StudentDashboard() {
         <UpcomingExams />
       </motion.div>
       
+<<<<<<< HEAD
+=======
+      {/* Uploaded Materials */}
+      <motion.div className="col-span-12" variants={itemVariants}>
+        <UploadedMaterials />
+      </motion.div>
+      
+      {/* Analytics */}
+      <motion.div className="col-span-12" variants={itemVariants}>
+        <AnalyticsDashboard />
+      </motion.div>
+      
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
       {/* Recent Performance */}
       <motion.div className="col-span-12" variants={itemVariants}>
         <h2 className="text-2xl font-semibold tracking-tight mb-4">Recent Performance</h2>

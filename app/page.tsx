@@ -134,10 +134,17 @@ export default function Home() {
           >
             <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
               <motion.h1 variants={itemVariants} className="font-headline text-4xl font-semibold tracking-tighter text-foreground sm:text-5xl md:text-6xl lg:text-7xl">
+<<<<<<< HEAD
                 The Future of <span className="text-primary">Assessment</span> is Here.
               </motion.h1>
               <motion.p variants={itemVariants} className="mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl">
                 Quizierra is a secure, robust, and engaging platform for modern education and professional certification.
+=======
+                Upload. Learn. <span className="text-primary">Improve</span> — One Quiz at a Time.
+              </motion.h1>
+              <motion.p variants={itemVariants} className="mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl">
+                Turn your notes and PDFs into smart quizzes that actually help you learn. Review key concepts, practice weak areas, and track your improvement.
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
               </motion.p>
               <motion.div variants={itemVariants} className="mt-8 flex flex-col gap-4 sm:flex-row">
                 <Button asChild size="lg" className="font-semibold">
@@ -146,8 +153,13 @@ export default function Home() {
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="font-semibold">
+<<<<<<< HEAD
                   <Link href="#">
                     Request a Demo
+=======
+                  <Link href="/dashboard/practice">
+                    Upload PDF
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
                   </Link>
                 </Button>
               </motion.div>
@@ -193,6 +205,7 @@ export default function Home() {
             transition={{ duration: 0.7 }}
           >
             <h2 className="font-headline text-3xl font-semibold tracking-tighter text-foreground sm:text-4xl md:text-5xl">
+<<<<<<< HEAD
               Built for Modern Learning
             </h2>
             <p className="mt-4 text-lg text-muted-foreground md:text-xl">
@@ -201,6 +214,24 @@ export default function Home() {
             <p className="mt-4 text-lg text-muted-foreground md:text-xl">
               With AI-powered assistance, deterministic autosave, and gamified progress, we've reimagined what online testing can be.
             </p>
+=======
+              How It Works
+            </h2>
+            <div className="mt-6 space-y-4">
+              <div>
+                <h3 className="text-xl font-semibold mb-2">1. Upload PDF / Text</h3>
+                <p className="text-muted-foreground">Upload your study materials—PDFs, notes, or paste text directly.</p>
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold mb-2">2. Review AI-Generated Answers</h3>
+                <p className="text-muted-foreground">Before taking the quiz, review key concepts and explanations extracted from your material.</p>
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold mb-2">3. Practice Weak Areas</h3>
+                <p className="text-muted-foreground">Take personalized quizzes and focus on areas where you need improvement.</p>
+              </div>
+            </div>
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
           </motion.div>
         </div>
       </section>
@@ -215,10 +246,17 @@ export default function Home() {
              className="mb-16 text-center"
           >
             <motion.h2 variants={itemVariants} className="font-headline text-3xl font-semibold tracking-tighter text-foreground sm:text-4xl md:text-5xl">
+<<<<<<< HEAD
               A Platform Built for Excellence
             </motion.h2>
             <motion.p variants={itemVariants} className="mx-auto mt-4 max-w-3xl text-lg text-muted-foreground md:text-xl">
               From deterministic autosave to AI-powered hints, every feature is designed for reliability and engagement.
+=======
+              Why Quizierra?
+            </motion.h2>
+            <motion.p variants={itemVariants} className="mx-auto mt-4 max-w-3xl text-lg text-muted-foreground md:text-xl">
+              ❌ No random MCQs • ✅ Questions from <em>your own material</em> • ✅ Mistake-based learning • ✅ Clear explanations
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
             </motion.p>
           </motion.div>
           <motion.div 
@@ -323,6 +361,7 @@ export default function Home() {
       <section className="w-full py-20 md:py-24 lg:py-32">
         <div className="container mx-auto px-4 text-center">
            <h2 className="font-headline text-3xl font-semibold tracking-tighter text-foreground sm:text-4xl md:text-5xl">
+<<<<<<< HEAD
             Ready to Revolutionize Your Quizzes?
           </h2>
           <p className="mx-auto mt-4 max-w-3xl text-lg text-muted-foreground md:text-xl">
@@ -331,6 +370,16 @@ export default function Home() {
           <Button asChild size="lg" className="mt-8 font-semibold">
             <Link href="/signup">
               Get Started Now <ArrowRight className="ml-2 h-5 w-5" />
+=======
+            Ready to Learn Smarter?
+          </h2>
+          <p className="mx-auto mt-4 max-w-3xl text-lg text-muted-foreground md:text-xl">
+            Start turning your study materials into personalized quizzes that help you actually learn and improve.
+          </p>
+          <Button asChild size="lg" className="mt-8 font-semibold">
+            <Link href="/signup">
+              Start Learning Smarter <ArrowRight className="ml-2 h-5 w-5" />
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
             </Link>
           </Button>
         </div>

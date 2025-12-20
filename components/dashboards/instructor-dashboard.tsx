@@ -227,6 +227,7 @@ function RecentActivityFeed() {
 }
 
 export function InstructorDashboard() {
+<<<<<<< HEAD
   return (
     <motion.div 
         className="grid grid-cols-12 gap-8 p-4 md:p-8"
@@ -273,4 +274,8 @@ export function InstructorDashboard() {
         </motion.div>
     </motion.div>
   );
+=======
+  // Use enhanced dashboard
+  return <EnhancedInstructorDashboard />;
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
 }

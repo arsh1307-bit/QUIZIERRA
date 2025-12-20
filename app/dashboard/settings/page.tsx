@@ -16,16 +16,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { useState, useEffect } from 'react';
+<<<<<<< HEAD
 import { doc, updateDoc } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { UserProfile } from '@/lib/types';
+=======
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { UserProfile, UserPreferences } from '@/lib/types';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
 
 const formSchema = z.object({
   displayName: z.string().min(2, { message: 'Display name must be at least 2 characters.' }),
   email: z.string().email(),
 });
 
+<<<<<<< HEAD
+=======
+const preferencesSchema = z.object({
+  defaultDifficulty: z.enum(['easy', 'medium', 'hard']),
+  defaultQuizLength: z.coerce.number().min(1).max(50),
+});
+
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
 function SettingsForm() {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -37,7 +53,17 @@ function SettingsForm() {
     return doc(firestore, 'users', user.uid);
   }, [user, firestore]);
 
+<<<<<<< HEAD
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+=======
+  const preferencesRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'userPreferences', user.uid);
+  }, [user, firestore]);
+
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+  const { data: preferences, isLoading: isPreferencesLoading } = useDoc<UserPreferences>(preferencesRef);
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,6 +72,17 @@ function SettingsForm() {
       email: '',
     },
   });
+<<<<<<< HEAD
+=======
+
+  const preferencesForm = useForm<z.infer<typeof preferencesSchema>>({
+    resolver: zodResolver(preferencesSchema),
+    defaultValues: {
+      defaultDifficulty: 'medium',
+      defaultQuizLength: 10,
+    },
+  });
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
   
   const { formState: { isDirty } } = form;
 
@@ -58,6 +95,18 @@ function SettingsForm() {
     }
   }, [userProfile, form]);
 
+<<<<<<< HEAD
+=======
+  useEffect(() => {
+    if (preferences) {
+      preferencesForm.reset({
+        defaultDifficulty: preferences.defaultDifficulty || 'medium',
+        defaultQuizLength: preferences.defaultQuizLength || 10,
+      });
+    }
+  }, [preferences, preferencesForm]);
+
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user || !firestore || !userProfile) {
       toast({
@@ -104,7 +153,45 @@ function SettingsForm() {
     }
   };
 
+<<<<<<< HEAD
   if (isProfileLoading || !userProfile) {
+=======
+  const onPreferencesSubmit = async (values: z.infer<typeof preferencesSchema>) => {
+    if (!user || !firestore) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'You must be logged in to update preferences.',
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const prefsRef = doc(firestore, 'userPreferences', user.uid);
+      await setDoc(prefsRef, {
+        userId: user.uid,
+        ...values,
+      }, { merge: true });
+
+      toast({
+        title: 'Preferences Saved',
+        description: 'Your quiz preferences have been updated.',
+      });
+      preferencesForm.reset(values);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Could not save preferences.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isProfileLoading || isPreferencesLoading || !userProfile) {
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
     return (
         <Card className="max-w-2xl">
             <CardHeader>
@@ -180,11 +267,146 @@ function SettingsForm() {
   );
 }
 
+<<<<<<< HEAD
 export default function SettingsPage() {
     return (
         <div className="p-8">
             <h1 className="text-3xl font-bold tracking-tight mb-8">Settings</h1>
             <SettingsForm />
+=======
+function QuizPreferencesForm() {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isSaving, setIsSaving] = useState(false);
+
+  const preferencesRef = useMemoFirebase(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, 'userPreferences', user.uid);
+  }, [user, firestore]);
+
+  const { data: preferences, isLoading } = useDoc<UserPreferences>(preferencesRef);
+
+  const preferencesForm = useForm<z.infer<typeof preferencesSchema>>({
+    resolver: zodResolver(preferencesSchema),
+    defaultValues: {
+      defaultDifficulty: 'medium',
+      defaultQuizLength: 10,
+    },
+  });
+
+  useEffect(() => {
+    if (preferences) {
+      preferencesForm.reset({
+        defaultDifficulty: preferences.defaultDifficulty || 'medium',
+        defaultQuizLength: preferences.defaultQuizLength || 10,
+      });
+    }
+  }, [preferences, preferencesForm]);
+
+  const onSubmit = async (values: z.infer<typeof preferencesSchema>) => {
+    if (!user || !firestore) return;
+
+    setIsSaving(true);
+    try {
+      const prefsRef = doc(firestore, 'userPreferences', user.uid);
+      await setDoc(prefsRef, {
+        userId: user.uid,
+        ...values,
+      }, { merge: true });
+
+      toast({
+        title: 'Preferences Saved',
+        description: 'Your quiz preferences have been updated.',
+      });
+      preferencesForm.reset(values);
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message || 'Could not save preferences.',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64" />
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="max-w-2xl">
+      <CardHeader>
+        <CardTitle>Quiz Preferences</CardTitle>
+        <CardDescription>Customize your default quiz settings</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Form {...preferencesForm}>
+          <form onSubmit={preferencesForm.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={preferencesForm.control}
+              name="defaultDifficulty"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Default Difficulty</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select difficulty" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="easy">Easy</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="hard">Hard</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={preferencesForm.control}
+              name="defaultQuizLength"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Default Quiz Length</FormLabel>
+                  <FormControl>
+                    <Input type="number" min={1} max={50} {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button type="submit" disabled={isSaving || !preferencesForm.formState.isDirty}>
+              {isSaving ? 'Saving...' : 'Save Preferences'}
+            </Button>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function SettingsPage() {
+    return (
+        <div className="p-8 space-y-8">
+            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+            <SettingsForm />
+            <QuizPreferencesForm />
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
         </div>
     )
 }

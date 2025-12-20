@@ -12,6 +12,11 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+<<<<<<< HEAD
+=======
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
 import { useToast } from '@/hooks/use-toast';
 import {
   getAuth,
@@ -20,7 +25,11 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from 'firebase/auth';
+<<<<<<< HEAD
 import { getFirestore, doc, setDoc } from 'firebase/firestore';
+=======
+import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -30,6 +39,10 @@ const formSchema = z.object({
   fullName: z.string().min(2, { message: 'Full name must be at least 2 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+<<<<<<< HEAD
+=======
+  role: z.enum(['student', 'instructor']).default('student'),
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
 });
 
 export default function SignupPage() {
@@ -51,6 +64,10 @@ export default function SignupPage() {
       fullName: '',
       email: '',
       password: '',
+<<<<<<< HEAD
+=======
+      role: 'student',
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
     },
   });
 
@@ -71,7 +88,11 @@ export default function SignupPage() {
         email: user.email,
         displayName: values.fullName,
         createdAt: new Date().toISOString(),
+<<<<<<< HEAD
         role: 'student' // Default role
+=======
+        role: values.role || 'student'
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
       });
       
       router.push('/dashboard');
@@ -100,12 +121,23 @@ export default function SignupPage() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
+<<<<<<< HEAD
+=======
+      // Check if user already exists, if not set role to student by default
+      const existingUser = await getDoc(doc(db, "users", user.uid));
+      const role = existingUser.exists() ? existingUser.data().role : 'student';
+      
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
       await setDoc(doc(db, "users", user.uid), {
         id: user.uid,
         email: user.email,
         displayName: user.displayName,
         createdAt: new Date().toISOString(),
+<<<<<<< HEAD
         role: 'student' // Default role
+=======
+        role: role
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
       }, { merge: true });
 
       router.push('/dashboard');
@@ -184,6 +216,35 @@ export default function SignupPage() {
                 </FormItem>
               )}
             />
+<<<<<<< HEAD
+=======
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>I am a</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="flex gap-6"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="student" id="student" />
+                        <Label htmlFor="student" className="cursor-pointer">Student</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="instructor" id="instructor" />
+                        <Label htmlFor="instructor" className="cursor-pointer">Teacher</Label>
+                      </div>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+>>>>>>> aac9a39ab4330529467a62387a99c804cd32ffbe
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? 'Creating Account...' : 'Create Account'}
             </Button>
