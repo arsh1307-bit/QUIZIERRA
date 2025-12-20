@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 9002",
+    "dev": "next dev -p 9005",
     "backend:start": "python -m uvicorn app.main:app --reload --port 8000",
     "dev:all": "echo Start backend (npm run backend:start) in another terminal, then run npm run dev",
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
