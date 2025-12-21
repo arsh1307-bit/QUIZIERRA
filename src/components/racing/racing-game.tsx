@@ -397,8 +397,11 @@ export function RacingGame({ botDifficulty = 'medium', onRaceComplete }: any) {
              </div>
              <Progress 
                 value={racersRef.current.find(r => !r.isBot)?.nitro || 0} 
-                className="h-3 bg-slate-800" 
-                indicatorClassName={controlsRef.current.nitro ? 'bg-white' : 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]'}
+                className={`h-3 bg-slate-800 ${
+                  controlsRef.current.nitro 
+                    ? '[&>div]:bg-white' 
+                    : '[&>div]:bg-orange-500 [&>div]:shadow-[0_0_10px_rgba(249,115,22,0.5)]'
+                }`}
              />
              <p className="text-[9px] text-slate-600 text-center font-bold uppercase tracking-widest">Hold Space for Boost</p>
           </div>
