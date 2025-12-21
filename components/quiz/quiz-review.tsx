@@ -18,13 +18,14 @@ import { collection, writeBatch, doc } from 'firebase/firestore';
 
 type QuizReviewProps = {
     quizData: GenerateQuizOutput;
+    isAdaptive?: boolean;
     onBack: () => void;
     onReset: () => void;
 };
 
-type QuestionState = GenerateQuizOutput['questions'][0] & { isApproved?: boolean };
+type QuestionState = GenerateQuizOutput['questions'][0] & { isApproved?: boolean; difficulty?: string };
 
-export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
+export function QuizReview({ quizData, isAdaptive = false, onBack, onReset }: QuizReviewProps) {
     const { user } = useUser();
     const firestore = useFirestore();
     const router = useRouter();
@@ -52,6 +53,11 @@ export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
     
     const unapprovedMcqs = questions.filter(q => q.type === 'mcq' && !q.isApproved).length;
 
+    // Use difficulty already set by Gemini AI during generation
+    function getDifficultyForQuestions(qs: QuestionState[]): QuestionState[] {
+        return qs.map(q => ({ ...q, difficulty: q.difficulty || 'intermediate' }));
+    }
+
     const handleSaveQuiz = async () => {
         if (!user || !firestore) {
             toast({ variant: 'destructive', title: 'Authentication Error', description: 'You must be logged in to save a quiz.' });
@@ -70,15 +76,24 @@ export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
             const quizCollectionRef = collection(firestore, 'quizzes');
             const newQuizDocRef = doc(quizCollectionRef);
 
-            const quizData = {
+            // Calculate number of question groups (for adaptive: N questions requested)
+            const uniqueGroups = isAdaptive 
+                ? new Set(questions.map(q => q.groupId).filter(Boolean)).size 
+                : questions.length;
+
+            const quizDoc = {
                 id: newQuizDocRef.id,
                 title: title,
                 createdBy: user.uid,
                 createdAt: new Date().toISOString(),
                 questionIds: questions.map(q => q.id),
-                description: `A quiz with ${questions.length} questions.`,
+                description: isAdaptive 
+                    ? `Adaptive quiz with ${uniqueGroups} questions (${questions.length} variants).`
+                    : `A quiz with ${questions.length} questions.`,
+                isAdaptive: isAdaptive,
+                totalQuestions: uniqueGroups,
             };
-            batch.set(newQuizDocRef, quizData);
+            batch.set(newQuizDocRef, quizDoc);
 
             // Correctly reference the subcollection for questions
             const questionsCollectionRef = collection(newQuizDocRef, 'questions');
@@ -92,6 +107,10 @@ export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
                     quizId: newQuizDocRef.id,
                     ...(question.options && { options: question.options }),
                     ...(question.correctAnswer && { correctAnswer: question.correctAnswer }),
+                    ...(question.difficulty && { difficulty: question.difficulty }),
+                    // Include groupId and groupIndex for adaptive quizzes
+                    ...(question.groupId && { groupId: question.groupId }),
+                    ...(typeof question.groupIndex === 'number' && { groupIndex: question.groupIndex }),
                 };
                 batch.set(questionDocRef, questionPayload);
             });

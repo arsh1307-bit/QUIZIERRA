@@ -4,7 +4,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import type { Question, Exam, StudentAnswer, Attempt, DifficultyLevel } from '@/lib/types';
-import { ADAPTIVE_SCORE_MULTIPLIERS, NORMALIZED_GROUP_MAX_SCORE } from '@/lib/types';
+import { DIFFICULTY_COINS, ADAPTIVE_SCORE_MULTIPLIERS, NORMALIZED_GROUP_MAX_SCORE } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from '@/components/ui/button';
@@ -13,30 +13,33 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Sparkles, TrendingUp, Minus } from 'lucide-react';
+import { Loader2, Sparkles, TrendingUp, Minus, Coins } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
-// Difficulty badge colors and labels
-const DIFFICULTY_CONFIG: Record<DifficultyLevel, { label: string; color: string; bgColor: string; icon: React.ReactNode }> = {
+// Difficulty badge colors, labels and UNIVERSAL COINS values
+const DIFFICULTY_CONFIG: Record<DifficultyLevel, { label: string; color: string; bgColor: string; icon: React.ReactNode; coins: number }> = {
   beginner: { 
     label: 'Beginner', 
     color: 'text-green-700 dark:text-green-400', 
     bgColor: 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-700',
-    icon: <Minus className="h-3 w-3" />
+    icon: <Minus className="h-3 w-3" />,
+    coins: 10  // Beginner badge = 10 universal coins
   },
   intermediate: { 
     label: 'Intermediate', 
     color: 'text-yellow-700 dark:text-yellow-400', 
     bgColor: 'bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300 dark:border-yellow-700',
-    icon: <TrendingUp className="h-3 w-3" />
+    icon: <TrendingUp className="h-3 w-3" />,
+    coins: 15  // Intermediate badge = 15 universal coins
   },
   hard: { 
     label: 'Hard', 
     color: 'text-red-700 dark:text-red-400', 
     bgColor: 'bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-700',
-    icon: <TrendingUp className="h-3 w-3" />
+    icon: <TrendingUp className="h-3 w-3 rotate-45" />,
+    coins: 20  // Hard badge = 20 universal coins
   },
 };
 
@@ -55,6 +58,30 @@ function ExamSkeleton() {
                     </div>
                     <Skeleton className="h-40 w-full" />
                     <Skeleton className="h-10 w-full" />
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
+function LoginRequired() {
+    return (
+        <div className="p-4 sm:p-8 max-w-3xl mx-auto">
+            <Card className="shadow-lg border-yellow-500/20">
+                <CardHeader className="text-center">
+                    <CardTitle className="text-2xl">🔒 Login Required</CardTitle>
+                    <CardDescription>You need to be logged in to take this exam.</CardDescription>
+                </CardHeader>
+                <CardContent className="text-center space-y-4">
+                    <p className="text-muted-foreground">
+                        Please sign in to your account to access the exam and track your progress.
+                    </p>
+                    <Button asChild className="w-full max-w-xs">
+                        <a href="/login">Sign In to Continue</a>
+                    </Button>
+                    <p className="text-sm text-muted-foreground">
+                        Don&apos;t have an account? <a href="/signup" className="text-primary hover:underline">Sign up here</a>
+                    </p>
                 </CardContent>
             </Card>
         </div>
@@ -173,19 +200,18 @@ export default function ExamPage() {
       return questions[currentGroupIndex];
     }, [questions, isAdaptiveQuiz, questionGroups, groupIds, currentGroupIndex, currentDifficulty]);
 
-    useEffect(() => {
-        if (!isUserLoading && !user) {
-            router.push('/login');
-        }
-    }, [user, isUserLoading, router]);
+    // Show login required instead of redirecting
+    if (!isUserLoading && !user) {
+        return <LoginRequired />;
+    }
 
-    // Calculate normalized max score for display
-    const displayMaxScore = useMemo(() => {
+    // Calculate potential coins reward for display
+    const potentialCoins = useMemo(() => {
       if (!currentQuestion) return 10;
-      if (!isAdaptiveQuiz) return currentQuestion.maxScore;
+      if (!isAdaptiveQuiz) return currentQuestion.maxScore || 10;
       
-      const multiplier = ADAPTIVE_SCORE_MULTIPLIERS[currentDifficulty];
-      return Math.round(NORMALIZED_GROUP_MAX_SCORE * multiplier);
+      // Universal coins based on difficulty
+      return DIFFICULTY_CONFIG[currentDifficulty]?.coins || 10;
     }, [currentQuestion, isAdaptiveQuiz, currentDifficulty]);
 
     const currentQuestionForEffect = useMemo(() => currentQuestion, [currentQuestion]);
@@ -302,7 +328,7 @@ export default function ExamPage() {
 
     const progress = totalQuestionsToAnswer > 0 ? ((currentGroupIndex + 1) / totalQuestionsToAnswer) * 100 : 0;
 
-    if (isLoadingExam || isLoadingQuestions || !exam || !questions || !currentQuestion) {
+    if (isUserLoading || isLoadingExam || isLoadingQuestions || !exam || !questions || !currentQuestion) {
         return <ExamSkeleton />;
     }
 
@@ -322,6 +348,29 @@ export default function ExamPage() {
                         )}
                     </div>
                     <CardDescription>Answer each question to the best of your ability.</CardDescription>
+                    
+                    {/* Adaptive quiz scoring explanation - show on first question */}
+                    {isAdaptiveQuiz && currentGroupIndex === 0 && adaptivePath.length === 0 && (
+                        <div className="mt-4 p-3 rounded-lg bg-gradient-to-r from-yellow-500/5 to-orange-500/5 border border-yellow-200 dark:border-yellow-800">
+                            <p className="text-xs font-medium text-yellow-700 dark:text-yellow-300 mb-2 flex items-center gap-1">
+                                <Coins className="h-3 w-3" /> Universal Coins - Adaptive Quiz:
+                            </p>
+                            <div className="flex flex-wrap gap-2 text-xs">
+                                <Badge variant="outline" className={cn("border", DIFFICULTY_CONFIG.beginner.bgColor, DIFFICULTY_CONFIG.beginner.color)}>
+                                    Beginner: 10 🪙
+                                </Badge>
+                                <Badge variant="outline" className={cn("border", DIFFICULTY_CONFIG.intermediate.bgColor, DIFFICULTY_CONFIG.intermediate.color)}>
+                                    Intermediate: 15 🪙
+                                </Badge>
+                                <Badge variant="outline" className={cn("border", DIFFICULTY_CONFIG.hard.bgColor, DIFFICULTY_CONFIG.hard.color)}>
+                                    Hard: 20 🪙
+                                </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                                ✓ Correct = Full coins + Level Up &nbsp;|&nbsp; ✗ Wrong = 0 coins + Reset
+                            </p>
+                        </div>
+                    )}
                 </CardHeader>
                 <CardContent className="space-y-8">
                     <div>
@@ -344,9 +393,12 @@ export default function ExamPage() {
                                     </Badge>
                                 )}
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                                {isAdaptiveQuiz ? `Worth: ${displayMaxScore} pts` : `Score: ${displayMaxScore} pts`}
-                            </p>
+                            <div className="flex items-center gap-1 text-sm">
+                                <Coins className="h-4 w-4 text-yellow-500" />
+                                <span className="font-medium text-yellow-600 dark:text-yellow-400">
+                                    {potentialCoins} coins
+                                </span>
+                            </div>
                         </div>
                         <Progress value={progress} className="h-2" />
                         

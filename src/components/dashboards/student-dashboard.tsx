@@ -51,10 +51,10 @@ function MyGarage({ attempts, isLoading }: { attempts: Attempt[] | null, isLoadi
     const { garage, carStats, loading: garageLoading } = useGarage();
     const router = useRouter();
 
-    // Calculate total coins across all parts
+    // Use universal coins (single wallet for all upgrades)
     const totalCoins = useMemo(() => {
         if (!garage) return 0;
-        return Object.values(garage.parts).reduce((sum, coins) => sum + coins, 0);
+        return garage.universalCoins || 0;
     }, [garage]);
 
     // Get highest level part

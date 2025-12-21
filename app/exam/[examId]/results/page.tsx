@@ -1,15 +1,26 @@
 'use client';
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { useFirestore, useDoc, useMemoFirebase, useUser } from '@/firebase';
-import { doc, updateDoc, collection, getDocs, query, where, getDoc } from 'firebase/firestore';
-import type { Attempt, GradeSubmissionOutput, UserProfile } from '@/lib/types';
+import { doc, updateDoc, collection, getDocs, query, where, getDoc, setDoc } from 'firebase/firestore';
+import type { Attempt, GradeSubmissionOutput, UserProfile, DifficultyLevel } from '@/lib/types';
+import { ADAPTIVE_SCORE_MULTIPLIERS, NORMALIZED_GROUP_MAX_SCORE } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { useEffect, useState } from 'react';
-// Grade submissions via Python backend proxy
+import { gradeSubmission } from '@/ai/flows/student-grades-submission';
 import { CAR_PARTS } from '@/lib/car-parts';
-import { Loader2, CheckCircle, XCircle, Award, Car } from 'lucide-react';
+import { calculatePartReward, CAR_PARTS_CONFIG, createDefaultGarage, type CarPartType } from '@/lib/racing-types';
+import { Loader2, CheckCircle, XCircle, Award, Car, Sparkles, TrendingUp, Coins, Wrench } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+
+// Difficulty badge config
+const DIFFICULTY_CONFIG: Record<DifficultyLevel, { label: string; color: string; bgColor: string }> = {
+  beginner: { label: 'Beginner', color: 'text-green-700 dark:text-green-400', bgColor: 'bg-green-100 dark:bg-green-900/30' },
+  intermediate: { label: 'Intermediate', color: 'text-yellow-700 dark:text-yellow-400', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30' },
+  hard: { label: 'Hard', color: 'text-red-700 dark:text-red-400', bgColor: 'bg-red-100 dark:bg-red-900/30' },
+};
 
 function ResultSkeleton() {
     return (
@@ -70,19 +81,20 @@ export default function ExamResultsPage() {
                     const normalizedAnswers = (attempt.answers || []).map((answer: any) => ({
                         questionId: answer.questionId,
                         questionContent: answer.questionContent,
-                        // Support both legacy `studentAnswer` and current `answer` fields.
                         answer: answer.answer ?? answer.studentAnswer ?? '',
                         correctAnswer: answer.correctAnswer,
                         timeTaken: typeof answer.timeTaken === 'number' ? answer.timeTaken : Number(answer.timeTaken ?? 0),
+                        difficulty: answer.difficulty,
+                        groupIndex: answer.groupIndex,
                     }));
 
-                    const r = await fetch('/api/grade', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ answers: normalizedAnswers }),
+                    // Use direct AI grading flow
+                    const result = await gradeSubmission({ 
+                        answers: normalizedAnswers,
+                        educationalLevel: educationalLevel as any,
+                        educationalYear: educationalYear,
+                        isAdaptive: attempt.isAdaptive ?? false,
                     });
-                    if (!r.ok) throw new Error('Grading service failed.');
-                    const result = await r.json();
                     setGradingResult(result);
                     
                     const attemptsCollection = collection(firestore, 'attempts');
@@ -97,6 +109,14 @@ export default function ExamResultsPage() {
                     const nextPart = CAR_PARTS[earnedPartsCount % CAR_PARTS.length];
                     const partEarned = result.finalScore > (attempt.totalQuestions * 10 * 0.7) ? nextPart : null;
 
+                    // Calculate racing car part reward - pass max score for proper percentage calculation
+                    const racingReward = calculatePartReward(
+                        result.finalScore, 
+                        attempt.totalQuestions,
+                        attempt.isAdaptive ?? false,
+                        result.maxPossibleScore
+                    );
+
                     if (attemptRef) {
                         const updateData: Record<string, any> = {
                             status: 'Completed',
@@ -104,11 +124,45 @@ export default function ExamResultsPage() {
                             gradedAnswers: result.gradedAnswers,
                             completedAt: new Date().toISOString(),
                         };
-                        // Only add partEarned if it has a value (avoid undefined)
+                        if (result.maxPossibleScore) {
+                            updateData.maxPossibleScore = result.maxPossibleScore;
+                        }
+                        if (result.normalizedFinalScore !== undefined) {
+                            updateData.normalizedFinalScore = result.normalizedFinalScore;
+                        }
                         if (partEarned) {
                             updateData.partEarned = partEarned;
                         }
+                        if (racingReward) {
+                            updateData.racingReward = racingReward;
+                        }
                         await updateDoc(attemptRef, updateData);
+                        
+                        // Update user's garage with universal coins
+                        if (racingReward) {
+                            try {
+                                const garageRef = doc(firestore, 'garages', attempt.studentId);
+                                const garageSnap = await getDoc(garageRef);
+                                if (garageSnap.exists()) {
+                                    const garageData = garageSnap.data();
+                                    const currentCoins = garageData.universalCoins || 0;
+                                    const totalEarned = garageData.totalCoinsEarned || 0;
+                                    await updateDoc(garageRef, {
+                                        universalCoins: currentCoins + racingReward.coins,
+                                        totalCoinsEarned: totalEarned + racingReward.coins,
+                                        updatedAt: new Date().toISOString(),
+                                    });
+                                } else {
+                                    // Create garage with initial universal coins if it doesn't exist
+                                    const defaultGarage = createDefaultGarage(attempt.studentId);
+                                    defaultGarage.universalCoins = racingReward.coins;
+                                    defaultGarage.totalCoinsEarned = racingReward.coins;
+                                    await setDoc(garageRef, defaultGarage);
+                                }
+                            } catch (garageError) {
+                                console.warn('Could not update garage:', garageError);
+                            }
+                        }
                     }
                 } catch (e: any) {
                     setError('Failed to grade submission. Please contact your instructor.');
@@ -146,22 +200,63 @@ export default function ExamResultsPage() {
         return <div className="text-center p-8">Could not load exam results.</div>;
     }
     
-    const totalPossibleScore = attempt.totalQuestions * 10;
-    const percentage = totalPossibleScore > 0 ? Math.round((gradingResult.finalScore / totalPossibleScore) * 100) : 0;
+    // Calculate scores - handle both adaptive and standard quizzes
+    const isAdaptive = attempt.isAdaptive;
+    const totalPossibleScore = isAdaptive && gradingResult.maxPossibleScore 
+        ? gradingResult.maxPossibleScore 
+        : attempt.totalQuestions * 10;
+    const percentage = isAdaptive && gradingResult.normalizedFinalScore !== undefined
+        ? gradingResult.normalizedFinalScore
+        : (totalPossibleScore > 0 ? Math.round((gradingResult.finalScore / totalPossibleScore) * 100) : 0);
 
     return (
         <div className="p-4 sm:p-8 max-w-3xl mx-auto">
             <Card className="shadow-lg">
                 <CardHeader className="text-center">
-                    <CardTitle className="text-3xl">Exam Results</CardTitle>
+                    <div className="flex items-center justify-center gap-2">
+                        <CardTitle className="text-3xl">Exam Results</CardTitle>
+                        {isAdaptive && (
+                            <Badge variant="outline" className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-300">
+                                <Sparkles className="h-3 w-3 mr-1" />
+                                Adaptive
+                            </Badge>
+                        )}
+                    </div>
                     <CardDescription>{attempt.examTitle}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                     <div className="text-center p-6 bg-muted/50 rounded-lg">
                         <p className="text-sm text-muted-foreground">Your Score</p>
                         <p className="text-6xl font-bold text-primary">{percentage}%</p>
-                        <p className="text-muted-foreground">{gradingResult.finalScore.toFixed(1)} / {totalPossibleScore} points</p>
+                        <p className="text-muted-foreground">
+                            {gradingResult.finalScore.toFixed(1)} / {totalPossibleScore} points
+                            {isAdaptive && ' (difficulty-adjusted)'}
+                        </p>
                     </div>
+
+                    {/* Adaptive path visualization */}
+                    {isAdaptive && attempt.adaptivePath && (
+                        <div className="p-4 bg-muted/30 rounded-lg">
+                            <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4" />
+                                Your Difficulty Path
+                            </h4>
+                            <div className="flex items-center gap-1 flex-wrap">
+                                {attempt.adaptivePath.map((diff: DifficultyLevel, idx: number) => {
+                                    const config = DIFFICULTY_CONFIG[diff];
+                                    return (
+                                        <Badge 
+                                            key={idx} 
+                                            variant="outline" 
+                                            className={cn("text-xs", config.bgColor, config.color)}
+                                        >
+                                            Q{idx + 1}: {config.label}
+                                        </Badge>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
                     {attempt.partEarned && (
                         <div className="text-center p-4 bg-green-500/10 rounded-lg border border-green-500/20">
@@ -174,21 +269,71 @@ export default function ExamResultsPage() {
                         </div>
                     )}
 
+                    {/* Racing Coins Reward */}
+                    {(attempt as any).racingReward && (
+                        <div className="text-center p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                            <h3 className="font-semibold flex items-center justify-center gap-2">
+                                <Coins className="h-5 w-5 text-yellow-500" />
+                                Racing Coins Earned!
+                            </h3>
+                            <div className="flex items-center justify-center gap-3 mt-2">
+                                <span className="text-3xl">
+                                    {CAR_PARTS_CONFIG[(attempt as any).racingReward.partType as CarPartType]?.icon || '🔧'}
+                                </span>
+                                <div className="text-left">
+                                    <p className="font-bold text-lg text-yellow-600">
+                                        +{(attempt as any).racingReward.coins} {CAR_PARTS_CONFIG[(attempt as any).racingReward.partType as CarPartType]?.name || 'Part'} Coins
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Use them in the garage to upgrade your racing car!
+                                    </p>
+                                </div>
+                            </div>
+                            <Badge variant="outline" className="mt-2 bg-yellow-500/5">
+                                <Wrench className="h-3 w-3 mr-1" />
+                                Visit Dashboard → Racing → Garage
+                            </Badge>
+                        </div>
+                    )}
+
                     <div className="space-y-4">
                         <h3 className="font-semibold text-lg">Detailed Breakdown</h3>
-                        {gradingResult.gradedAnswers.map((gradedAnswer, index) => (
-                             <Card key={gradedAnswer.questionId} className="p-4">
-                                <div className="flex justify-between items-start">
-                                    <p className="font-medium flex-1 pr-4">{index + 1}. {gradedAnswer.questionContent}</p>
-                                    <div className="flex items-center gap-2">
-                                        {gradedAnswer.isCorrect ? <CheckCircle className="h-5 w-5 text-green-500" /> : <XCircle className="h-5 w-5 text-destructive" />}
-                                        <span className={`font-bold ${gradedAnswer.isCorrect ? 'text-green-500' : 'text-destructive'}`}>{gradedAnswer.score.toFixed(1)}/10</span>
+                        {gradingResult.gradedAnswers.map((gradedAnswer: any, index: number) => {
+                             const difficulty = gradedAnswer.difficulty as DifficultyLevel | undefined;
+                             const diffConfig = difficulty ? DIFFICULTY_CONFIG[difficulty] : null;
+                             const maxScoreForQuestion = isAdaptive && difficulty 
+                                 ? NORMALIZED_GROUP_MAX_SCORE * (ADAPTIVE_SCORE_MULTIPLIERS[difficulty] || 1)
+                                 : 10;
+                             
+                             return (
+                                 <Card key={gradedAnswer.questionId} className="p-4">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1 pr-4">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="font-medium">{index + 1}.</span>
+                                                {diffConfig && (
+                                                    <Badge 
+                                                        variant="outline" 
+                                                        className={cn("text-xs", diffConfig.bgColor, diffConfig.color)}
+                                                    >
+                                                        {diffConfig.label}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            <p className="font-medium">{gradedAnswer.questionContent}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {gradedAnswer.isCorrect ? <CheckCircle className="h-5 w-5 text-green-500" /> : <XCircle className="h-5 w-5 text-destructive" />}
+                                            <span className={`font-bold ${gradedAnswer.isCorrect ? 'text-green-500' : 'text-destructive'}`}>
+                                                {gradedAnswer.score.toFixed(1)}/{maxScoreForQuestion}
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-2">Your answer: <span className="text-foreground">{Array.isArray(gradedAnswer.answer) ? gradedAnswer.answer.join(', ') : gradedAnswer.answer}</span></p>
-                                <p className="text-xs text-blue-500 bg-blue-500/10 rounded-full px-2 py-0.5 mt-2 inline-block">Justification: {gradedAnswer.justification}</p>
-                           </Card>
-                        ))}
+                                    <p className="text-sm text-muted-foreground mt-2">Your answer: <span className="text-foreground">{Array.isArray(gradedAnswer.answer) ? gradedAnswer.answer.join(', ') : gradedAnswer.answer}</span></p>
+                                    <p className="text-xs text-blue-500 bg-blue-500/10 rounded-full px-2 py-0.5 mt-2 inline-block">Justification: {gradedAnswer.justification}</p>
+                               </Card>
+                             );
+                        })}
                     </div>
 
                     <Button className="w-full" size="lg" onClick={() => router.push('/dashboard')}>

@@ -108,11 +108,12 @@ export default function ExamResultsPage() {
                     const nextPart = CAR_PARTS[earnedPartsCount % CAR_PARTS.length];
                     const partEarned = result.finalScore > (attempt.totalQuestions * 10 * 0.7) ? nextPart : null;
 
-                    // Calculate racing car part reward
+                    // Calculate racing car part reward - pass max score for proper percentage calculation
                     const racingReward = calculatePartReward(
                         result.finalScore, 
                         attempt.totalQuestions,
-                        attempt.isAdaptive ?? false
+                        attempt.isAdaptive ?? false,
+                        result.maxPossibleScore  // Pass the actual max score for adaptive quizzes
                     );
 
                     if (attemptRef) {
@@ -136,18 +137,28 @@ export default function ExamResultsPage() {
                         }
                         await updateDoc(attemptRef, updateData);
                         
-                        // Update user's garage with the racing coins
+                        // Update user's garage with universal coins
                         if (racingReward) {
                             try {
                                 const garageRef = doc(firestore, 'garages', attempt.studentId);
                                 const garageSnap = await getDoc(garageRef);
                                 if (garageSnap.exists()) {
                                     const garageData = garageSnap.data();
-                                    const currentCoins = garageData.parts?.[racingReward.partType] || 0;
+                                    const currentCoins = garageData.universalCoins || 0;
+                                    const totalEarned = garageData.totalCoinsEarned || 0;
                                     await updateDoc(garageRef, {
-                                        [`parts.${racingReward.partType}`]: currentCoins + racingReward.coins,
+                                        universalCoins: currentCoins + racingReward.coins,
+                                        totalCoinsEarned: totalEarned + racingReward.coins,
                                         updatedAt: new Date().toISOString(),
                                     });
+                                } else {
+                                    // Create garage with initial coins if it doesn't exist
+                                    const { createDefaultGarage } = await import('@/lib/racing-types');
+                                    const defaultGarage = createDefaultGarage(attempt.studentId);
+                                    defaultGarage.universalCoins = racingReward.coins;
+                                    defaultGarage.totalCoinsEarned = racingReward.coins;
+                                    const { setDoc } = await import('firebase/firestore');
+                                    await setDoc(garageRef, defaultGarage);
                                 }
                             } catch (garageError) {
                                 console.warn('Could not update garage:', garageError);
@@ -259,23 +270,21 @@ export default function ExamResultsPage() {
                         </div>
                     )}
 
-                    {/* Racing Coins Reward */}
+                    {/* Universal Coins Reward */}
                     {(attempt as any).racingReward && (
                         <div className="text-center p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
                             <h3 className="font-semibold flex items-center justify-center gap-2">
                                 <Coins className="h-5 w-5 text-yellow-500" />
-                                Racing Coins Earned!
+                                Universal Coins Earned!
                             </h3>
                             <div className="flex items-center justify-center gap-3 mt-2">
-                                <span className="text-3xl">
-                                    {CAR_PARTS_CONFIG[(attempt as any).racingReward.partType as CarPartType]?.icon || '🔧'}
-                                </span>
+                                <span className="text-3xl">🪙</span>
                                 <div className="text-left">
                                     <p className="font-bold text-lg text-yellow-600">
-                                        +{(attempt as any).racingReward.coins} {CAR_PARTS_CONFIG[(attempt as any).racingReward.partType as CarPartType]?.name || 'Part'} Coins
+                                        +{(attempt as any).racingReward.coins} Coins
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        Use them in the garage to upgrade your racing car!
+                                        Spend on any car upgrade in the garage!
                                     </p>
                                 </div>
                             </div>

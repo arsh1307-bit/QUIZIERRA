@@ -15,20 +15,24 @@ type GenerationStep = 'configure' | 'review';
 export default function CreateQuizPage() {
     const [step, setStep] = useState<GenerationStep>('configure');
     const [generatedQuiz, setGeneratedQuiz] = useState<GenerateQuizOutput | null>(null);
+    const [isAdaptive, setIsAdaptive] = useState(false);
 
-    const handleQuizGenerated = (data: GenerateQuizOutput) => {
+    const handleQuizGenerated = (data: GenerateQuizOutput & { isAdaptive?: boolean }) => {
         setGeneratedQuiz(data);
+        setIsAdaptive(data.isAdaptive ?? false);
         setStep('review');
     };
 
     const handleBack = () => {
         setStep('configure');
         setGeneratedQuiz(null);
+        setIsAdaptive(false);
     }
     
     const handleReset = () => {
         setStep('configure');
         setGeneratedQuiz(null);
+        setIsAdaptive(false);
     }
 
     return (
@@ -67,7 +71,7 @@ export default function CreateQuizPage() {
                             </CardContent>
                         </Card>
                     ) : (
-                       generatedQuiz && <QuizReview quizData={generatedQuiz} onBack={handleBack} onReset={handleReset}/>
+                       generatedQuiz && <QuizReview quizData={generatedQuiz} isAdaptive={isAdaptive} onBack={handleBack} onReset={handleReset}/>
                     )}
                 </motion.div>
             </AnimatePresence>

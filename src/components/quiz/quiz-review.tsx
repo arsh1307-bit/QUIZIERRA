@@ -18,13 +18,14 @@ import { collection, writeBatch, doc } from 'firebase/firestore';
 
 type QuizReviewProps = {
     quizData: GenerateQuizOutput;
+    isAdaptive?: boolean;
     onBack: () => void;
     onReset: () => void;
 };
 
 type QuestionState = GenerateQuizOutput['questions'][0] & { isApproved?: boolean; difficulty?: string };
 
-export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
+export function QuizReview({ quizData, isAdaptive = false, onBack, onReset }: QuizReviewProps) {
     const { user } = useUser();
     const firestore = useFirestore();
     const router = useRouter();
@@ -53,29 +54,9 @@ export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
     const unapprovedMcqs = questions.filter(q => q.type === 'mcq' && !q.isApproved).length;
 
     async function classifyDifficultyForQuestions(qs: QuestionState[]): Promise<QuestionState[]> {
-        const classified: QuestionState[] = [];
-
-        for (const q of qs) {
-            let difficulty: 'beginner' | 'intermediate' | 'hard' = q.difficulty ?? 'intermediate';
-            try {
-                const res = await fetch('/api/predict-difficulty', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text: q.content }),
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data?.label && (data.label === 'beginner' || data.label === 'intermediate' || data.label === 'hard')) {
-                        difficulty = data.label;
-                    }
-                }
-            } catch (e) {
-                console.warn('Difficulty classification failed for question', q.id, e);
-            }
-            classified.push({ ...q, difficulty });
-        }
-
-        return classified;
+        // Use difficulty already set by Gemini AI during generation
+        // No need to call external API - Gemini sets difficulty in the prompt
+        return qs.map(q => ({ ...q, difficulty: q.difficulty || 'intermediate' }));
     }
 
     const handleSaveQuiz = async () => {
@@ -110,15 +91,24 @@ export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
             const quizCollectionRef = collection(firestore, 'quizzes');
             const newQuizDocRef = doc(quizCollectionRef);
 
-            const quizData = {
+            // Calculate number of question groups (for adaptive: N questions requested)
+            const uniqueGroups = isAdaptive 
+                ? new Set(normalizedQuestions.map(q => q.groupId).filter(Boolean)).size 
+                : normalizedQuestions.length;
+
+            const quizDoc = {
                 id: newQuizDocRef.id,
                 title: String(title || ''),
                 createdBy: user.uid,
                 createdAt: new Date().toISOString(),
                 questionIds: normalizedQuestions.map(q => q.id),
-                description: `A quiz with ${normalizedQuestions.length} questions.`,
+                description: isAdaptive 
+                    ? `Adaptive quiz with ${uniqueGroups} questions (${normalizedQuestions.length} variants).`
+                    : `A quiz with ${normalizedQuestions.length} questions.`,
+                isAdaptive: isAdaptive,
+                totalQuestions: uniqueGroups, // Actual questions to answer
             };
-            batch.set(newQuizDocRef, quizData);
+            batch.set(newQuizDocRef, quizDoc);
 
             // Correctly reference the subcollection for questions
             const questionsCollectionRef = collection(newQuizDocRef, 'questions');
@@ -133,6 +123,9 @@ export function QuizReview({ quizData, onBack, onReset }: QuizReviewProps) {
                     ...(question.options && { options: question.options }),
                     ...(question.correctAnswer && { correctAnswer: question.correctAnswer }),
                     ...(question.difficulty && { difficulty: question.difficulty }),
+                    // Include groupId and groupIndex for adaptive quizzes
+                    ...(question.groupId && { groupId: question.groupId }),
+                    ...(typeof question.groupIndex === 'number' && { groupIndex: question.groupIndex }),
                 };
                 batch.set(questionDocRef, questionPayload);
             });

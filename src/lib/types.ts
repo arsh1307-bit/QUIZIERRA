@@ -85,15 +85,43 @@ export type GradeSubmissionOutput = {
   normalizedFinalScore?: number;
 };
 
-// Adaptive quiz scoring configuration
+// Adaptive quiz scoring configuration - Universal Coins System
+// These are the COIN values awarded for each difficulty level
+export const DIFFICULTY_COINS: Record<DifficultyLevel, number> = {
+  beginner: 10,      // Beginner badge = 10 coins
+  intermediate: 15,  // Intermediate badge = 15 coins
+  hard: 20,          // Hard badge = 20 coins
+};
+
+// Multipliers for score calculation (used for backward compatibility)
 export const ADAPTIVE_SCORE_MULTIPLIERS: Record<DifficultyLevel, number> = {
-  beginner: 1,      // Base score
-  intermediate: 1.5, // 50% bonus
-  hard: 2,          // 100% bonus (double)
+  beginner: 1,      // Base score (10 points)
+  intermediate: 1.5, // 50% bonus (15 points)
+  hard: 2,          // 100% bonus (20 points)
 };
 
 // For normalized scoring - each question group contributes equal max score
 export const NORMALIZED_GROUP_MAX_SCORE = 10;
+
+// Universal Coins Wallet - single currency for entire app
+export type UniversalWallet = {
+  userId: string;
+  coinBalance: number;
+  totalEarned: number;
+  totalSpent: number;
+  lastUpdated: string;
+};
+
+// Quiz session summary for coin economy
+export type QuizSummary = {
+  quizId: string;
+  baseCount: number;          // N questions requested
+  totalCoinsEarned: number;
+  accuracyPercentage: number;
+  difficultyPathTaken: DifficultyLevel[];
+  speedBonus: number;
+  coinBalance: number;        // Updated balance after quiz
+};
 
 
 export type Attempt = {
@@ -108,8 +136,11 @@ export type Attempt = {
     startedAt: string;
     completedAt?: string;
     examTitle?: string; // Denormalized for easy display
-    partEarned?: string; // For gamification (old system)
+    partEarned?: string; // For gamification (old system - deprecated)
     isAdaptive?: boolean; // Whether this was an adaptive quiz attempt
     adaptivePath?: DifficultyLevel[]; // Track the difficulty path taken
-    racingReward?: { partType: string; coins: number }; // Racing game coins reward
+    // Universal Coins Economy
+    coinsEarned?: number; // Total universal coins earned from this attempt
+    coinBalance?: number; // User's coin balance after this attempt
+    racingReward?: { partType: string; coins: number }; // Legacy - now use coinsEarned
 };

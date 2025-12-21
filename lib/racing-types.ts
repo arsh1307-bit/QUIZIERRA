@@ -178,13 +178,18 @@ export interface MultiplayerRoom {
   createdAt: string;
 }
 
-// Quiz reward calculation
+// Quiz reward calculation - handles both standard and adaptive quizzes
 export function calculatePartReward(
   score: number,
   totalQuestions: number,
-  isAdaptive: boolean = false
+  isAdaptive: boolean = false,
+  maxPossibleScore?: number  // For adaptive quizzes, pass the actual max score
 ): { partType: CarPartType; coins: number } | null {
-  const percentage = (score / (totalQuestions * 10)) * 100;
+  // For adaptive quizzes, use the provided max score or estimate
+  // Standard quizzes: each question is 10 points max
+  // Adaptive quizzes: can vary based on difficulty path taken
+  const maxScore = maxPossibleScore || (totalQuestions * (isAdaptive ? 15 : 10)); // 15 is avg of 10,15,20
+  const percentage = (score / maxScore) * 100;
   
   // Minimum 40% to get any reward
   if (percentage < 40) return null;
@@ -198,7 +203,7 @@ export function calculatePartReward(
   else if (percentage >= 50) coins = 7;
   else if (percentage >= 40) coins = 5;
   
-  // Bonus for adaptive quizzes
+  // Bonus for adaptive quizzes (reward players who tackle harder questions)
   if (isAdaptive) {
     coins = Math.floor(coins * 1.5);
   }

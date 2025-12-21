@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useGarage } from '@/hooks/use-garage';
+import { useFirebase } from '@/firebase/provider';
+import { collection, addDoc } from 'firebase/firestore';
 import { type CarStats } from '@/lib/racing-types';
 import {
   Play,
@@ -67,6 +69,7 @@ function CarSprite({ color, nitroActive, isPlayer }: { color: string; nitroActiv
 
 export function RacingGame({ botDifficulty = 'medium', onRaceComplete }: any) {
   const { garage, carStats, updateRaceStats } = useGarage();
+  const { user, firestore } = useFirebase();
 
   const [status, setStatus] = useState<'idle' | 'countdown' | 'racing' | 'finished'>('idle');
   const [lights, setLights] = useState(0);
@@ -223,6 +226,26 @@ export function RacingGame({ botDifficulty = 'medium', onRaceComplete }: any) {
         updateRaceStats(isPlayer);
         setWinnerData({ name: (winner as Racer).name, isPlayer, time: (winner as Racer).finishTime! });
         setStatus('finished');
+        // --- Save race result to Firestore ---
+        if (firestore && user && isPlayer) {
+          // Compose race result object
+          const player = racersRef.current.find(r => !r.isBot);
+          const bots = racersRef.current.filter(r => r.isBot);
+          const playerRank = [player, ...bots].sort((a, b) => (a.finishTime ?? 999999) - (b.finishTime ?? 999999)).findIndex(r => r.id === 'player') + 1;
+          const coinsEarned = isPlayer && playerRank === 1 ? 50 : 10;
+          const raceResult = {
+            userId: user.uid,
+            carName: garage?.carName || 'You',
+            carColor: garage?.carColor || '#22C55E',
+            finishTime: player?.finishTime ?? 0,
+            rank: playerRank,
+            totalParticipants: 1 + bots.length,
+            coinsEarned,
+            raceType: 'bot',
+            createdAt: new Date().toISOString(),
+          };
+          addDoc(collection(firestore, 'raceResults'), raceResult).catch(console.error);
+        }
         if (onRaceComplete) onRaceComplete(isPlayer, (winner as Racer).finishTime);
       } else {
         gameLoopRef.current = requestAnimationFrame(update);

@@ -117,6 +117,10 @@ export interface UserGarage {
   totalRaces: number;
   wins: number;
   losses: number;
+  // Universal Coins Wallet
+  universalCoins: number;  // Single currency for all upgrades
+  totalCoinsEarned: number;
+  totalCoinsSpent: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -178,16 +182,28 @@ export interface MultiplayerRoom {
   createdAt: string;
 }
 
-// Quiz reward calculation
-export function calculatePartReward(
+// Quiz reward calculation - handles both standard and adaptive quizzes
+// Returns UNIVERSAL COINS that can be spent on ANY upgrade
+export function calculateUniversalCoinsReward(
   score: number,
   totalQuestions: number,
-  isAdaptive: boolean = false
-): { partType: CarPartType; coins: number } | null {
-  const percentage = (score / (totalQuestions * 10)) * 100;
+  isAdaptive: boolean = false,
+  maxPossibleScore?: number,
+  difficultyPath?: ('beginner' | 'intermediate' | 'hard')[]
+): number {
+  // For adaptive quizzes with difficulty path, sum up coins directly
+  // Binary scoring: correct = full coins, wrong = 0
+  if (isAdaptive && difficultyPath && difficultyPath.length > 0) {
+    // This is handled at grading time, just return the score as coins
+    return score;
+  }
+  
+  // For standard quizzes, use percentage-based calculation
+  const maxScore = maxPossibleScore || (totalQuestions * 10);
+  const percentage = (score / maxScore) * 100;
   
   // Minimum 40% to get any reward
-  if (percentage < 40) return null;
+  if (percentage < 40) return 0;
   
   // Determine coins based on performance
   let coins = 0;
@@ -202,6 +218,20 @@ export function calculatePartReward(
   if (isAdaptive) {
     coins = Math.floor(coins * 1.5);
   }
+  
+  return coins;
+}
+
+// Legacy function - kept for backward compatibility
+export function calculatePartReward(
+  score: number,
+  totalQuestions: number,
+  isAdaptive: boolean = false,
+  maxPossibleScore?: number  // For adaptive quizzes, pass the actual max score
+): { partType: CarPartType; coins: number } | null {
+  const coins = calculateUniversalCoinsReward(score, totalQuestions, isAdaptive, maxPossibleScore);
+  
+  if (coins === 0) return null;
   
   // Random part type (weighted towards common parts)
   const partTypes: CarPartType[] = ['engine', 'wheels', 'nitro', 'body', 'exhaust', 'suspension'];
@@ -264,7 +294,7 @@ export function generateBotStats(difficulty: 'easy' | 'medium' | 'hard'): CarSta
   };
 }
 
-// Default garage for new users
+// Default garage for new users with Universal Coins wallet
 export function createDefaultGarage(odId: string): Omit<UserGarage, 'id'> {
   return {
     odId,
@@ -289,6 +319,10 @@ export function createDefaultGarage(odId: string): Omit<UserGarage, 'id'> {
     totalRaces: 0,
     wins: 0,
     losses: 0,
+    // Universal Coins - single currency for entire app
+    universalCoins: 0,
+    totalCoinsEarned: 0,
+    totalCoinsSpent: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };

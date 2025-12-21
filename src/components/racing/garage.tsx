@@ -64,20 +64,20 @@ function StatBar({ label, value, maxValue = 100, color }: { label: string; value
 
 function PartCard({ 
   partType, 
-  coins, 
+  universalCoins, 
   level, 
   onUpgrade 
 }: { 
   partType: CarPartType; 
-  coins: number; 
+  universalCoins: number;  // Universal coins wallet balance
   level: number;
   onUpgrade: () => void;
 }) {
   const config = CAR_PARTS_CONFIG[partType];
   const isMaxLevel = level >= config.maxLevel;
   const nextUpgradeCost = isMaxLevel ? 0 : config.coinsPerUpgrade[level];
-  const canUpgrade = !isMaxLevel && coins >= nextUpgradeCost;
-  const progressToNextLevel = isMaxLevel ? 100 : Math.min((coins / nextUpgradeCost) * 100, 100);
+  const canUpgrade = !isMaxLevel && universalCoins >= nextUpgradeCost;
+  const progressToNextLevel = isMaxLevel ? 100 : Math.min((universalCoins / nextUpgradeCost) * 100, 100);
 
   return (
     <motion.div
@@ -108,13 +108,12 @@ function PartCard({
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center justify-between text-sm">
-            <span className="flex items-center gap-1 text-yellow-600">
-              <Coins className="w-4 h-4" />
-              {coins} coins
-            </span>
+            <Badge variant="outline" className="bg-primary/5">
+              Level {level}/{config.maxLevel}
+            </Badge>
             {!isMaxLevel && (
               <span className="text-muted-foreground">
-                Need: {nextUpgradeCost}
+                Cost: {nextUpgradeCost} 🪙
               </span>
             )}
           </div>
@@ -134,10 +133,10 @@ function PartCard({
             ) : canUpgrade ? (
               <>
                 <ArrowUp className="w-4 h-4 mr-1" />
-                Upgrade ({nextUpgradeCost} coins)
+                Upgrade ({nextUpgradeCost} 🪙)
               </>
             ) : (
-              <>Need {nextUpgradeCost - coins} more coins</>
+              <>Need {nextUpgradeCost - universalCoins} more 🪙</>
             )}
           </Button>
         </CardContent>
@@ -284,7 +283,7 @@ export function GaragePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
             <Car className="w-8 h-8" />
@@ -292,7 +291,18 @@ export function GaragePage() {
           </h1>
           <p className="text-muted-foreground">Upgrade your car and dominate the track!</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          {/* Universal Coins Wallet */}
+          <Card className="px-4 py-2 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border-yellow-500/30">
+            <div className="flex items-center gap-2">
+              <Coins className="w-5 h-5 text-yellow-500" />
+              <div className="text-sm">
+                <span className="font-bold text-lg text-yellow-600">{garage.universalCoins || 0}</span>
+                <span className="text-muted-foreground ml-1">🪙</span>
+              </div>
+            </div>
+          </Card>
+          {/* Race Stats */}
           <Card className="px-4 py-2">
             <div className="flex items-center gap-2">
               <Trophy className="w-5 h-5 text-yellow-500" />
@@ -327,7 +337,7 @@ export function GaragePage() {
                 <PartCard
                   key={partType}
                   partType={partType}
-                  coins={garage.parts[partType]}
+                  universalCoins={garage.universalCoins || 0}
                   level={garage.levels[partType]}
                   onUpgrade={() => handleUpgrade(partType)}
                 />

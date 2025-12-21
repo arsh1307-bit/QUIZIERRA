@@ -36,6 +36,30 @@ function ExamSkeleton() {
     )
 }
 
+function LoginRequired() {
+    return (
+        <div className="p-4 sm:p-8 max-w-3xl mx-auto">
+            <Card className="shadow-lg border-yellow-500/20">
+                <CardHeader className="text-center">
+                    <CardTitle className="text-2xl">🔒 Login Required</CardTitle>
+                    <CardDescription>You need to be logged in to take this exam.</CardDescription>
+                </CardHeader>
+                <CardContent className="text-center space-y-4">
+                    <p className="text-muted-foreground">
+                        Please sign in to your account to access the exam and track your progress.
+                    </p>
+                    <Button asChild className="w-full max-w-xs">
+                        <a href="/login">Sign In to Continue</a>
+                    </Button>
+                    <p className="text-sm text-muted-foreground">
+                        Don&apos;t have an account? <a href="/signup" className="text-primary hover:underline">Sign up here</a>
+                    </p>
+                </CardContent>
+            </Card>
+        </div>
+    )
+}
+
 export default function ExamPage() {
     const params = useParams();
     const examId = params.examId as string;
@@ -62,11 +86,10 @@ export default function ExamPage() {
     const { data: questions, isLoading: isLoadingQuestions } = useCollection<Question>(questionsQuery);
     const { data: exam, isLoading: isLoadingExam } = useDoc<Exam>(examRef);
 
-    useEffect(() => {
-        if (!isUserLoading && !user) {
-            router.push('/login');
-        }
-    }, [user, isUserLoading, router]);
+    // Show login required instead of redirecting
+    if (!isUserLoading && !user) {
+        return <LoginRequired />;
+    }
 
     const currentQuestion = useMemo(() => {
         if (!questions || questions.length === 0) return null;
@@ -143,7 +166,7 @@ export default function ExamPage() {
 
     const progress = questions ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
 
-    if (isLoadingExam || isLoadingQuestions || !exam || !questions || !currentQuestion) {
+    if (isUserLoading || isLoadingExam || isLoadingQuestions || !exam || !questions || !currentQuestion) {
         return <ExamSkeleton />;
     }
 

@@ -140,7 +140,7 @@ export function RaceHistory() {
     const resultsRef = collection(firestore, 'raceResults');
     const q = query(
       resultsRef,
-      where('odId', '==', user.uid),
+      where('userId', '==', user.uid),
       orderBy('createdAt', 'desc'),
       limit(50)
     );

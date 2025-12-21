@@ -41,9 +41,10 @@ export type GradeSubmissionInput = z.infer<typeof GradeSubmissionInputSchema>;
 
 const GradedAnswerSchema = StudentAnswerSchema.extend({
     isCorrect: z.boolean(),
-    score: z.number().min(0).describe("Final score for the question. For adaptive quizzes: beginner=10, intermediate=15, hard=20. For standard: out of 10."),
+    score: z.number().min(0).describe("Final score/coins for the question. BINARY SCORING: Correct = full points (beginner=10, intermediate=15, hard=20), Wrong = 0. No partial credit for MCQs."),
     justification: z.string().describe("A brief explanation for the score given, appropriate for the student's educational level."),
     normalizedScore: z.number().optional().describe("For adaptive quizzes: the normalized score contribution (all questions contribute equally to final score)."),
+    coinsEarned: z.number().optional().describe("Universal coins earned (same as score for correct answers, 0 for wrong)."),
 });
 
 const GradeSubmissionOutputSchema = z.object({
@@ -51,6 +52,7 @@ const GradeSubmissionOutputSchema = z.object({
   finalScore: z.number().describe("The total score for the entire submission."),
   maxPossibleScore: z.number().optional().describe("For adaptive quizzes: the maximum possible score based on the path taken."),
   normalizedFinalScore: z.number().optional().describe("For adaptive quizzes: the normalized final score (percentage-based)."),
+  totalCoinsEarned: z.number().optional().describe("Total universal coins earned from this quiz."),
 });
 export type GradeSubmissionOutput = z.infer<typeof GradeSubmissionOutputSchema>;
 
@@ -111,14 +113,17 @@ You MUST adjust your grading expectations based on this level:
 ### END EDUCATIONAL CONTEXT ###
 {{/if}}
 
-The scoring for each question is out of 10 and must factor in accuracy, time taken, AND educational level expectations:
-- A perfect answer (appropriate for the student's level) with quick response should receive 10.
-- A correct but very slow answer should receive a slightly lower score (e.g., 8 or 9).
-- An incorrect answer must receive 0.
-- For text questions, award partial credit based on:
-  1. How well the student's answer matches the reference 'correctAnswer'
-  2. Whether the depth and quality of answer is appropriate for their educational level
-  3. Demonstration of understanding at their level (not above or below expectations)
+### BINARY SCORING RULES (IMPORTANT) ###
+For MCQ questions, scoring is STRICTLY BINARY:
+- CORRECT answer = FULL points (10 for standard, or difficulty-based: beginner=10, intermediate=15, hard=20)
+- WRONG answer = 0 points (NO partial credit, NO middle ground)
+
+For text questions ONLY (not MCQ), you may award partial credit based on:
+1. How well the student's answer matches the reference 'correctAnswer'
+2. Whether the depth and quality is appropriate for their educational level
+3. Demonstration of understanding at their level
+
+MCQ evaluation must be EXACT MATCH or WRONG. There is nothing in between.
 
 For justifications:
 - Use language appropriate for the student's educational level
@@ -144,6 +149,13 @@ Provide the entire output as a single, valid JSON object that strictly follows t
 `,
 });
 
+// Universal coins per difficulty level (same as score)
+const DIFFICULTY_COINS: Record<string, number> = {
+  beginner: 10,      // Beginner badge = 10 coins
+  intermediate: 15,  // Intermediate badge = 15 coins
+  hard: 20,          // Hard badge = 20 coins
+};
+
 // Score multipliers for adaptive quiz difficulties
 const ADAPTIVE_SCORE_MULTIPLIERS: Record<string, number> = {
   beginner: 1,      // Base score (10 points max)
@@ -165,33 +177,33 @@ const gradeSubmissionFlow = ai.defineFlow(
     
     if (!output) return output!;
     
-    // Apply adaptive scoring if applicable
+    // Apply adaptive scoring with binary grading and universal coins
     if (input.isAdaptive) {
       const numQuestions = output.gradedAnswers.length;
       let totalScore = 0;
       let maxPossibleScore = 0;
+      let totalCoinsEarned = 0;
       
       output.gradedAnswers = output.gradedAnswers.map((answer, idx) => {
         const difficulty = input.answers[idx]?.difficulty || 'intermediate';
-        const multiplier = ADAPTIVE_SCORE_MULTIPLIERS[difficulty] || 1;
-        const maxForDifficulty = NORMALIZED_GROUP_MAX_SCORE * multiplier;
+        const coinsForDifficulty = DIFFICULTY_COINS[difficulty] || 10;
         
-        // Apply multiplier to the base score (out of 10)
-        const adjustedScore = answer.isCorrect 
-          ? Math.round(answer.score * multiplier)
-          : 0;
+        // BINARY SCORING: Correct = full coins, Wrong = 0
+        const isCorrect = answer.isCorrect === true;
+        const earnedCoins = isCorrect ? coinsForDifficulty : 0;
         
         // Calculate normalized score (each question contributes equally when normalized)
-        const normalizedScore = answer.isCorrect 
-          ? (answer.score / 10) * NORMALIZED_GROUP_MAX_SCORE
-          : 0;
+        const normalizedScore = isCorrect ? NORMALIZED_GROUP_MAX_SCORE : 0;
         
-        totalScore += adjustedScore;
-        maxPossibleScore += maxForDifficulty;
+        totalScore += earnedCoins;
+        maxPossibleScore += coinsForDifficulty;
+        totalCoinsEarned += earnedCoins;
         
         return {
           ...answer,
-          score: adjustedScore,
+          isCorrect,
+          score: earnedCoins,
+          coinsEarned: earnedCoins,
           normalizedScore: Math.round(normalizedScore * 10) / 10,
         };
       });
@@ -206,9 +218,24 @@ const gradeSubmissionFlow = ai.defineFlow(
         finalScore: totalScore,
         maxPossibleScore,
         normalizedFinalScore,
+        totalCoinsEarned,
       };
     }
     
-    return output!;
+    // Standard quiz scoring
+    let totalCoinsEarned = 0;
+    output.gradedAnswers = output.gradedAnswers.map((answer) => {
+      const earnedCoins = answer.isCorrect ? answer.score : 0;
+      totalCoinsEarned += earnedCoins;
+      return {
+        ...answer,
+        coinsEarned: earnedCoins,
+      };
+    });
+    
+    return {
+      ...output,
+      totalCoinsEarned,
+    };
   }
 );
