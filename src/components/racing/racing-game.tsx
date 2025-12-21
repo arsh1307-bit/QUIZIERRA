@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -19,8 +19,22 @@ import {
 
 // --- Constants ---
 const FINISH_LINE = 100;
-const POSITION_MULTIPLIER = 18; 
+const POSITION_MULTIPLIER = 18;
 const BOT_NAMES = ['Apex', 'Vortex', 'Nitro-Fuel', 'Turbo-X', 'Phantom', 'Blitz'];
+
+// --- Types ---
+interface Racer {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
+  speed: number;
+  nitro: number;
+  stats: CarStats & { nitroBoost: number; handling: number }; // Ensure these props exist
+  isBot: boolean;
+  finished: boolean;
+  finishTime?: number;
+}
 
 // --- Car Sprite Component ---
 function CarSprite({ color, nitroActive, isPlayer }: { color: string; nitroActive: boolean; isPlayer: boolean }) {
@@ -53,15 +67,19 @@ function CarSprite({ color, nitroActive, isPlayer }: { color: string; nitroActiv
 
 export function RacingGame({ botDifficulty = 'medium', onRaceComplete }: any) {
   const { garage, carStats, updateRaceStats } = useGarage();
-  
+
   const [status, setStatus] = useState<'idle' | 'countdown' | 'racing' | 'finished'>('idle');
-  const [lights, setLights] = useState(0); 
+  const [lights, setLights] = useState(0);
   const [winnerData, setWinnerData] = useState<{ name: string; isPlayer: boolean; time: number } | null>(null);
   const [displayTime, setDisplayTime] = useState(0);
 
-  const racersRef = useRef<any[]>([]);
+  // Use the Racer interface here instead of any[]
+  const racersRef = useRef<Racer[]>([]);
   const controlsRef = useRef({ up: false, down: false, nitro: false });
-  const gameLoopRef = useRef<number>();
+  
+  // FIXED: Initialized with null to satisfy TypeScript
+  const gameLoopRef = useRef<number | null>(null);
+  
   const lastUpdateRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const [, setTick] = useState(0);
@@ -73,24 +91,31 @@ export function RacingGame({ botDifficulty = 'medium', onRaceComplete }: any) {
     if (botDifficulty === 'medium') botMult = 1.25;
     if (botDifficulty === 'hard') botMult = 1.35;
 
-    const player = {
+    // Helper to ensure stats have defaults if undefined
+    const baseStats = {
+      ...carStats,
+      nitroBoost: (carStats as any).nitroBoost || 50,
+      handling: (carStats as any).handling || 50
+    };
+
+    const player: Racer = {
       id: 'player',
       name: garage.carName || 'You',
       color: garage.carColor || '#22C55E',
       position: 0, speed: 0, nitro: 100,
-      stats: { ...carStats },
+      stats: { ...baseStats },
       isBot: false, finished: false
     };
 
-    const bots = [0, 1, 2].map(i => ({
+    const bots: Racer[] = [0, 1, 2].map(i => ({
       id: `bot-${i}`,
       name: BOT_NAMES[i],
       color: ['#EF4444', '#F59E0B', '#8B5CF6'][i],
       position: 0, speed: 0, nitro: 100,
       stats: {
-        ...carStats,
-        speed: carStats.speed * botMult,
-        acceleration: carStats.acceleration * botMult
+        ...baseStats,
+        speed: baseStats.speed * botMult,
+        acceleration: baseStats.acceleration * botMult
       },
       isBot: true, finished: false
     }));
@@ -148,7 +173,7 @@ export function RacingGame({ botDifficulty = 'medium', onRaceComplete }: any) {
       lastUpdateRef.current = now;
       setDisplayTime(now - startTimeRef.current);
 
-      let winner: any = null;
+      let winner: Racer | null = null;
 
       racersRef.current.forEach(r => {
         if (r.finished) return;
@@ -157,6 +182,8 @@ export function RacingGame({ botDifficulty = 'medium', onRaceComplete }: any) {
           const target = r.stats.speed;
           r.speed += (target - r.speed) * dt;
           const playerPos = racersRef.current.find(p => !p.isBot)?.position || 0;
+          
+          // Bot Logic
           if (r.position < playerPos - 10 && r.nitro > 20) {
             r.speed += r.stats.nitroBoost * dt * 0.5;
             r.nitro -= dt * 15;
@@ -164,13 +191,14 @@ export function RacingGame({ botDifficulty = 'medium', onRaceComplete }: any) {
             r.nitro = Math.min(100, r.nitro + dt * 3);
           }
         } else {
+          // Player Logic
           const { up, down, nitro } = controlsRef.current;
           if (up) r.speed = Math.min(r.stats.speed * 1.3, r.speed + r.stats.acceleration * dt * 2.5);
           else if (down) r.speed = Math.max(0, r.speed - r.stats.handling * 10 * dt);
           else r.speed = Math.max(0, r.speed - 20 * dt);
 
           if (nitro && r.nitro > 0) {
-            r.speed += (r.stats.nitroBoost * 2.0) * dt; 
+            r.speed += (r.stats.nitroBoost * 2.0) * dt;
             r.nitro = Math.max(0, r.nitro - (dt * 45));
           } else {
             r.nitro = Math.min(100, r.nitro + (dt * 4));
@@ -190,19 +218,23 @@ export function RacingGame({ botDifficulty = 'medium', onRaceComplete }: any) {
       setTick(now);
 
       if (winner) {
-        cancelAnimationFrame(gameLoopRef.current!);
-        const isPlayer = !winner.isBot;
+        if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
+        const isPlayer = !(winner as Racer).isBot;
         updateRaceStats(isPlayer);
-        setWinnerData({ name: winner.name, isPlayer, time: winner.finishTime });
+        setWinnerData({ name: (winner as Racer).name, isPlayer, time: (winner as Racer).finishTime! });
         setStatus('finished');
-        if (onRaceComplete) onRaceComplete(isPlayer, winner.finishTime);
+        if (onRaceComplete) onRaceComplete(isPlayer, (winner as Racer).finishTime);
       } else {
         gameLoopRef.current = requestAnimationFrame(update);
       }
     };
 
     gameLoopRef.current = requestAnimationFrame(update);
-    return () => cancelAnimationFrame(gameLoopRef.current!);
+    
+    // Clean up function with safety check
+    return () => {
+        if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
+    };
   }, [status, updateRaceStats, onRaceComplete]);
 
   return (
