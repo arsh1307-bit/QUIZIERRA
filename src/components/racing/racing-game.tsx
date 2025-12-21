@@ -2,689 +2,376 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { useToast } from '@/hooks/use-toast';
 import { useGarage } from '@/hooks/use-garage';
-import { 
-  type CarStats, 
-  type RaceParticipant,
-  type RaceType,
-  generateBotStats 
-} from '@/lib/racing-types';
+import { type CarStats } from '@/lib/racing-types';
 import {
   Play,
-  Pause,
   RotateCcw,
   Trophy,
-  Zap,
   ChevronUp,
-  ChevronDown,
-  Car,
-  Bot,
-  Users,
-  Timer,
-  Flag,
-  Loader2
+  Frown,
+  Zap,
 } from 'lucide-react';
 
-interface RacerState {
-  id: string;
-  name: string;
-  color: string;
-  position: number; // 0-100%
-  speed: number;
-  nitro: number;
-  maxNitro: number;
-  stats: CarStats;
-  isBot: boolean;
-  finished: boolean;
-  finishTime?: number;
-  lane: number;
-}
-
-interface GameState {
-  status: 'idle' | 'countdown' | 'racing' | 'finished';
-  countdown: number;
-  startTime: number;
-  elapsedTime: number;
-  winner?: string;
-}
-
-const TRACK_LENGTH = 100; // percentage
+// --- Constants ---
 const FINISH_LINE = 100;
-const NITRO_REGEN_RATE = 2; // Faster nitro regen
-const NITRO_DRAIN_RATE = 1.5;
-const POSITION_MULTIPLIER = 3; // Speed up race progression
-const BOT_NAMES = ['Speed Demon', 'Road Runner', 'Turbo Tiger', 'Flash', 'Nitro Knight', 'Drift King'];
+const POSITION_MULTIPLIER = 18; 
+const BOT_NAMES = ['Apex', 'Vortex', 'Nitro-Fuel', 'Turbo-X', 'Phantom', 'Blitz'];
 
+// --- Car Sprite Component ---
 function CarSprite({ color, nitroActive, isPlayer }: { color: string; nitroActive: boolean; isPlayer: boolean }) {
   return (
-    <div className="relative">
+    <div className="relative flex items-center justify-center w-16">
       <motion.div
-        animate={nitroActive ? {
-          x: [-2, 2, -2],
-          transition: { duration: 0.1, repeat: Infinity }
-        } : {}}
+        animate={nitroActive ? { y: [-1, 1, -1] } : {}}
+        transition={{ duration: 0.1, repeat: Infinity }}
       >
-        <svg viewBox="0 0 60 30" className={`w-16 h-8 ${isPlayer ? 'drop-shadow-lg' : ''}`}>
-          {/* Nitro flames */}
+        <svg viewBox="0 0 60 30" className={`w-16 h-8 ${isPlayer ? 'drop-shadow-[0_0_12px_rgba(34,197,94,0.9)]' : 'drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)]'}`}>
           {nitroActive && (
-            <motion.g
-              animate={{ opacity: [1, 0.5, 1], scale: [1, 1.2, 1] }}
-              transition={{ duration: 0.1, repeat: Infinity }}
-            >
-              <ellipse cx="2" cy="15" rx="8" ry="4" fill="#F97316" />
-              <ellipse cx="0" cy="15" rx="5" ry="2" fill="#FEF08A" />
+            <motion.g animate={{ opacity: [1, 0.5, 1], scale: [1, 1.4, 1] }} transition={{ duration: 0.05, repeat: Infinity }}>
+              <path d="M-5 15 L5 10 L5 20 Z" fill="#F97316" />
+              <path d="M-2 15 L4 12 L4 18 Z" fill="#FEF08A" />
             </motion.g>
           )}
-          {/* Car body */}
-          <path
-            d="M8 18 L12 18 L16 10 L32 8 L45 8 L52 12 L58 18 L58 22 L8 22 Z"
-            fill={color}
-          />
-          {/* Window */}
-          <path
-            d="M18 11 L30 9 L30 17 L18 17 Z"
-            fill="#1e293b"
-            opacity="0.8"
-          />
-          <path
-            d="M32 9 L43 9 L50 14 L32 17 Z"
-            fill="#1e293b"
-            opacity="0.8"
-          />
-          {/* Wheels */}
+          <path d="M8 18 L12 18 L16 10 L32 8 L45 8 L52 12 L58 18 L58 22 L8 22 Z" fill={color} />
+          <path d="M18 11 L30 9 L30 17 L18 17 Z" fill="#1e293b" opacity="0.8" />
+          <path d="M32 9 L43 9 L50 14 L32 17 Z" fill="#1e293b" opacity="0.8" />
           <circle cx="18" cy="22" r="5" fill="#1f2937" />
           <circle cx="18" cy="22" r="2" fill="#6b7280" />
           <circle cx="48" cy="22" r="5" fill="#1f2937" />
           <circle cx="48" cy="22" r="2" fill="#6b7280" />
-          {/* Headlight */}
-          <ellipse cx="56" cy="16" rx="2" ry="1.5" fill="#fef08a" />
-          {/* Player indicator */}
-          {isPlayer && (
-            <polygon points="30,0 33,5 27,5" fill="#22C55E" />
-          )}
+          {isPlayer && <polygon points="30,0 33,5 27,5" fill="#22C55E" />}
         </svg>
       </motion.div>
     </div>
   );
 }
 
-function RaceTrack({ 
-  racers, 
-  gameState 
-}: { 
-  racers: RacerState[]; 
-  gameState: GameState;
-}) {
-  const trackRef = useRef<HTMLDivElement>(null);
-
-  return (
-    <div className="relative w-full bg-gradient-to-b from-green-900 to-green-800 rounded-lg overflow-hidden p-4">
-      {/* Sky */}
-      <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-sky-400 to-sky-300 rounded-t-lg" />
-      
-      {/* Track */}
-      <div ref={trackRef} className="relative mt-16 space-y-2">
-        {racers.map((racer, index) => (
-          <div key={racer.id} className="relative h-14">
-            {/* Lane */}
-            <div className="absolute inset-0 bg-gray-700 rounded border-b-2 border-dashed border-white/30">
-              {/* Lane markings */}
-              <div className="absolute inset-y-0 left-0 right-0 flex justify-between px-4 items-center opacity-30">
-                {[...Array(10)].map((_, i) => (
-                  <div key={i} className="w-8 h-1 bg-white" />
-                ))}
-              </div>
-            </div>
-            
-            {/* Finish line */}
-            <div 
-              className="absolute top-0 bottom-0 w-2 bg-gradient-to-b from-white via-black to-white"
-              style={{ left: `${FINISH_LINE}%` }}
-            >
-              <div className="absolute -top-6 left-1/2 -translate-x-1/2">
-                <Flag className="w-4 h-4 text-white" />
-              </div>
-            </div>
-            
-            {/* Car */}
-            <motion.div
-              className="absolute top-1/2 -translate-y-1/2 z-10"
-              animate={{ left: `${Math.min(racer.position, FINISH_LINE)}%` }}
-              transition={{ type: 'spring', stiffness: 100, damping: 20 }}
-            >
-              <CarSprite 
-                color={racer.color} 
-                nitroActive={racer.nitro > 0 && racer.speed > racer.stats.speed} 
-                isPlayer={!racer.isBot}
-              />
-            </motion.div>
-            
-            {/* Racer info */}
-            <div className="absolute left-2 top-1 text-xs text-white/80 font-medium z-20">
-              {racer.isBot ? <Bot className="w-3 h-3 inline mr-1" /> : <Car className="w-3 h-3 inline mr-1" />}
-              {racer.name}
-            </div>
-            
-            {/* Position indicator */}
-            <div className="absolute right-2 top-1 z-20">
-              <Badge variant={racer.finished ? 'default' : 'secondary'} className="text-xs">
-                {racer.finished ? `🏁 ${((racer.finishTime || 0) / 1000).toFixed(2)}s` : `${racer.position.toFixed(1)}%`}
-              </Badge>
-            </div>
-          </div>
-        ))}
-      </div>
-      
-      {/* Countdown overlay */}
-      <AnimatePresence>
-        {gameState.status === 'countdown' && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.5 }}
-            className="absolute inset-0 flex items-center justify-center bg-black/50 z-30"
-          >
-            <motion.span
-              key={gameState.countdown}
-              initial={{ scale: 2, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0, opacity: 0 }}
-              className="text-8xl font-bold text-white"
-            >
-              {gameState.countdown === 0 ? 'GO!' : gameState.countdown}
-            </motion.span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      
-      {/* Winner overlay */}
-      <AnimatePresence>
-        {gameState.status === 'finished' && gameState.winner && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 flex items-center justify-center bg-black/70 z-30"
-          >
-            <motion.div
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              className="text-center"
-            >
-              <Trophy className="w-20 h-20 mx-auto text-yellow-400 mb-4" />
-              <h2 className="text-4xl font-bold text-white mb-2">
-                {gameState.winner} Wins!
-              </h2>
-              <p className="text-white/80">
-                Time: {(gameState.elapsedTime / 1000).toFixed(2)}s
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function Controls({
-  onAccelerate,
-  onBrake,
-  onNitro,
-  nitroAmount,
-  maxNitro,
-  disabled,
-  speed,
-  maxSpeed
-}: {
-  onAccelerate: () => void;
-  onBrake: () => void;
-  onNitro: () => void;
-  nitroAmount: number;
-  maxNitro: number;
-  disabled: boolean;
-  speed: number;
-  maxSpeed: number;
-}) {
-  return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="grid grid-cols-3 gap-4">
-          {/* Speed gauge */}
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground text-center">Speed</div>
-            <div className="relative h-24 w-24 mx-auto">
-              <svg viewBox="0 0 100 100" className="w-full h-full">
-                <circle cx="50" cy="50" r="45" fill="none" stroke="#e5e7eb" strokeWidth="8" />
-                <circle 
-                  cx="50" 
-                  cy="50" 
-                  r="45" 
-                  fill="none" 
-                  stroke="#22C55E" 
-                  strokeWidth="8"
-                  strokeDasharray={`${(speed / maxSpeed) * 283} 283`}
-                  strokeLinecap="round"
-                  transform="rotate(-90 50 50)"
-                />
-                <text x="50" y="55" textAnchor="middle" className="text-lg font-bold fill-current">
-                  {Math.round(speed)}
-                </text>
-              </svg>
-            </div>
-          </div>
-          
-          {/* Control buttons */}
-          <div className="flex flex-col items-center gap-2">
-            <Button
-              size="lg"
-              className="w-20 h-20 rounded-full"
-              onMouseDown={onAccelerate}
-              onTouchStart={onAccelerate}
-              disabled={disabled}
-            >
-              <ChevronUp className="w-10 h-10" />
-            </Button>
-            <Button
-              size="lg"
-              variant="secondary"
-              className="w-20 h-20 rounded-full"
-              onMouseDown={onBrake}
-              onTouchStart={onBrake}
-              disabled={disabled}
-            >
-              <ChevronDown className="w-10 h-10" />
-            </Button>
-          </div>
-          
-          {/* Nitro */}
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground text-center">Nitro</div>
-            <Button
-              size="lg"
-              variant="destructive"
-              className="w-24 h-24 rounded-full mx-auto flex flex-col"
-              onMouseDown={onNitro}
-              onTouchStart={onNitro}
-              disabled={disabled || nitroAmount <= 0}
-            >
-              <Zap className="w-8 h-8" />
-              <span className="text-xs">{Math.round(nitroAmount)}%</span>
-            </Button>
-            <Progress value={(nitroAmount / maxNitro) * 100} className="h-2" />
-          </div>
-        </div>
-        
-        <div className="mt-4 text-center text-sm text-muted-foreground">
-          Use keyboard: ↑ Accelerate | ↓ Brake | Space for Nitro
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export function RacingGame({ 
-  raceType = 'bot',
-  botDifficulty = 'medium',
-  onRaceComplete
-}: { 
-  raceType?: RaceType;
-  botDifficulty?: 'easy' | 'medium' | 'hard';
-  onRaceComplete?: (won: boolean, time: number) => void;
-}) {
+export function RacingGame({ botDifficulty = 'medium', onRaceComplete }: any) {
   const { garage, carStats, updateRaceStats } = useGarage();
-  const { toast } = useToast();
   
-  const [gameState, setGameState] = useState<GameState>({
-    status: 'idle',
-    countdown: 3,
-    startTime: 0,
-    elapsedTime: 0,
-  });
-  
-  const [racers, setRacers] = useState<RacerState[]>([]);
-  const [isNitroActive, setIsNitroActive] = useState(false);
-  const [isAccelerating, setIsAccelerating] = useState(false);
-  const [isBraking, setIsBraking] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
-  
-  const gameLoopRef = useRef<number | undefined>(undefined);
+  const [status, setStatus] = useState<'idle' | 'countdown' | 'racing' | 'finished'>('idle');
+  const [lights, setLights] = useState(0); 
+  const [winnerData, setWinnerData] = useState<{ name: string; isPlayer: boolean; time: number } | null>(null);
+  const [displayTime, setDisplayTime] = useState(0);
+
+  const racersRef = useRef<any[]>([]);
+  const controlsRef = useRef({ up: false, down: false, nitro: false });
+  const gameLoopRef = useRef<number>();
   const lastUpdateRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(0);
+  const [, setTick] = useState(0);
 
-  // Initialize race - only call this explicitly, not in useEffect
   const initializeRace = useCallback(() => {
-    if (!garage || !carStats) {
-      console.log('Cannot initialize: missing garage or carStats');
-      return;
-    }
+    if (!garage || !carStats) return;
 
-    console.log('Initializing race...');
+    let botMult = 1.15;
+    if (botDifficulty === 'medium') botMult = 1.25;
+    if (botDifficulty === 'hard') botMult = 1.35;
 
-    const playerRacer: RacerState = {
-      id: garage.odId,
-      name: garage.carName,
-      color: garage.carColor,
-      position: 0,
-      speed: 0,
-      nitro: 100,
-      maxNitro: 100,
-      stats: { ...carStats }, // Create a copy to avoid reference issues
-      isBot: false,
-      finished: false,
-      lane: 0,
+    const player = {
+      id: 'player',
+      name: garage.carName || 'You',
+      color: garage.carColor || '#22C55E',
+      position: 0, speed: 0, nitro: 100,
+      stats: { ...carStats },
+      isBot: false, finished: false
     };
 
-    const bots: RacerState[] = [];
-    if (raceType === 'bot') {
-      const numBots = botDifficulty === 'easy' ? 2 : botDifficulty === 'medium' ? 3 : 4;
-      for (let i = 0; i < numBots; i++) {
-        const botStats = generateBotStats(botDifficulty);
-        botStats.totalPower = botStats.speed + botStats.acceleration + botStats.handling + botStats.nitroBoost;
-        bots.push({
-          id: `bot-${i}`,
-          name: BOT_NAMES[i % BOT_NAMES.length],
-          color: ['#EF4444', '#F59E0B', '#8B5CF6', '#EC4899'][i],
-          position: 0,
-          speed: 0,
-          nitro: 100,
-          maxNitro: 100,
-          stats: botStats,
-          isBot: true,
-          finished: false,
-          lane: i + 1,
-        });
-      }
-    }
+    const bots = [0, 1, 2].map(i => ({
+      id: `bot-${i}`,
+      name: BOT_NAMES[i],
+      color: ['#EF4444', '#F59E0B', '#8B5CF6'][i],
+      position: 0, speed: 0, nitro: 100,
+      stats: {
+        ...carStats,
+        speed: carStats.speed * botMult,
+        acceleration: carStats.acceleration * botMult
+      },
+      isBot: true, finished: false
+    }));
 
-    setRacers([playerRacer, ...bots]);
-    setGameState({
-      status: 'idle',
-      countdown: 3,
-      startTime: 0,
-      elapsedTime: 0,
-    });
-    setIsInitialized(true);
-    console.log('Race initialized with', bots.length + 1, 'racers');
-  }, [garage?.odId, garage?.carName, garage?.carColor, carStats?.totalPower, raceType, botDifficulty]);
+    racersRef.current = [player, ...bots];
+    setStatus('idle');
+    setWinnerData(null);
+    setDisplayTime(0);
+    setLights(0);
+  }, [garage, carStats, botDifficulty]);
 
-  // Only initialize once on mount
   useEffect(() => {
-    if (!isInitialized && garage && carStats) {
-      initializeRace();
-    }
-  }, [isInitialized, garage, carStats, initializeRace]);
+    if (racersRef.current.length === 0) initializeRace();
+  }, [initializeRace]);
 
-  // Start race countdown
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent, isDown: boolean) => {
+      const k = e.key.toLowerCase();
+      if (k === 'w' || k === 'arrowup') controlsRef.current.up = isDown;
+      if (k === 's' || k === 'arrowdown') controlsRef.current.down = isDown;
+      if (e.code === 'Space') controlsRef.current.nitro = isDown;
+    };
+    window.addEventListener('keydown', (e) => handleKey(e, true));
+    window.addEventListener('keyup', (e) => handleKey(e, false));
+    return () => {
+      window.removeEventListener('keydown', (e) => handleKey(e, true));
+      window.removeEventListener('keyup', (e) => handleKey(e, false));
+    };
+  }, []);
+
   const startRace = () => {
-    setGameState(prev => ({ ...prev, status: 'countdown', countdown: 3 }));
-    
-    const countdownInterval = setInterval(() => {
-      setGameState(prev => {
-        if (prev.countdown <= 1) {
-          clearInterval(countdownInterval);
-          return {
-            ...prev,
-            status: 'racing',
-            countdown: 0,
-            startTime: Date.now(),
-          };
-        }
-        return { ...prev, countdown: prev.countdown - 1 };
-      });
-    }, 1000);
+    setStatus('countdown');
+    let currentLight = 0;
+    const interval = setInterval(() => {
+      currentLight += 1;
+      setLights(currentLight);
+      if (currentLight === 5) {
+        clearInterval(interval);
+        setTimeout(() => {
+          setLights(0);
+          startTimeRef.current = Date.now();
+          lastUpdateRef.current = Date.now();
+          setStatus('racing');
+        }, 600 + Math.random() * 1000);
+      }
+    }, 700);
   };
 
-  // Game loop
   useEffect(() => {
-    if (gameState.status !== 'racing') return;
+    if (status !== 'racing') return;
 
-    const updateGame = (timestamp: number) => {
-      const deltaTime = lastUpdateRef.current ? (timestamp - lastUpdateRef.current) / 1000 : 0.016;
-      lastUpdateRef.current = timestamp;
+    const update = () => {
+      const now = Date.now();
+      const dt = (now - lastUpdateRef.current) / 1000;
+      lastUpdateRef.current = now;
+      setDisplayTime(now - startTimeRef.current);
 
-      setRacers(prevRacers => {
-        const updatedRacers = prevRacers.map(racer => {
-          if (racer.finished) return racer;
+      let winner: any = null;
 
-          let newSpeed = racer.speed;
-          let newNitro = racer.nitro;
-          let newPosition = racer.position;
+      racersRef.current.forEach(r => {
+        if (r.finished) return;
 
-          if (racer.isBot) {
-            // Bot AI - balanced for fair competitive racing
-            // Bots reach 60-75% of their max speed
-            const targetSpeed = racer.stats.speed * (0.60 + Math.random() * 0.15);
-            // Moderate acceleration
-            const accelerationRate = racer.stats.acceleration * 0.32;
-            
-            if (newSpeed < targetSpeed) {
-              newSpeed += accelerationRate * deltaTime;
-            } else if (newSpeed > targetSpeed * 1.1) {
-              // Gradually slow down if too fast (prevents sudden spikes)
-              newSpeed = Math.max(targetSpeed, newSpeed - accelerationRate * 0.3 * deltaTime);
-            }
-            
-            // Bot nitro usage - occasional small boosts
-            if (newNitro > 40 && Math.random() < 0.008) {
-              // Moderate boost
-              newSpeed += racer.stats.nitroBoost * 0.25;
-              newNitro -= NITRO_DRAIN_RATE * deltaTime * 6;
-            }
-            
-            // Normal nitro regen for bots
-            newNitro = Math.min(racer.maxNitro, newNitro + NITRO_REGEN_RATE * deltaTime * 0.8);
+        if (r.isBot) {
+          const target = r.stats.speed;
+          r.speed += (target - r.speed) * dt;
+          const playerPos = racersRef.current.find(p => !p.isBot)?.position || 0;
+          if (r.position < playerPos - 10 && r.nitro > 20) {
+            r.speed += r.stats.nitroBoost * dt * 0.5;
+            r.nitro -= dt * 15;
           } else {
-            // Player controls - snappy and responsive
-            const accelerationRate = racer.stats.acceleration * 1.2; // Faster acceleration
-            const brakingRate = racer.stats.handling * 0.8;
-            const maxSpeed = racer.stats.speed * 1.1; // Slightly higher max speed for player
-
-            if (isAccelerating) {
-              newSpeed = Math.min(maxSpeed, newSpeed + accelerationRate * deltaTime * 2);
-            } else if (isBraking) {
-              newSpeed = Math.max(0, newSpeed - brakingRate * deltaTime * 2);
-            } else {
-              // Slower natural deceleration
-              newSpeed = Math.max(0, newSpeed - (accelerationRate * 0.15) * deltaTime);
-            }
-
-            // Nitro boost - more powerful for player
-            if (isNitroActive && newNitro > 0) {
-              newSpeed = Math.min(maxSpeed * 1.6, newSpeed + racer.stats.nitroBoost * deltaTime * 1.5);
-              newNitro = Math.max(0, newNitro - NITRO_DRAIN_RATE * deltaTime * 20);
-            } else {
-              // Nitro regen
-              newNitro = Math.min(racer.maxNitro, newNitro + NITRO_REGEN_RATE * deltaTime * 3);
-            }
+            r.nitro = Math.min(100, r.nitro + dt * 3);
           }
+        } else {
+          const { up, down, nitro } = controlsRef.current;
+          if (up) r.speed = Math.min(r.stats.speed * 1.3, r.speed + r.stats.acceleration * dt * 2.5);
+          else if (down) r.speed = Math.max(0, r.speed - r.stats.handling * 10 * dt);
+          else r.speed = Math.max(0, r.speed - 20 * dt);
 
-          // Update position - multiplied for faster races
-          newPosition += (newSpeed / 50) * deltaTime * POSITION_MULTIPLIER;
-
-          // Check finish
-          if (newPosition >= FINISH_LINE && !racer.finished) {
-            return {
-              ...racer,
-              position: FINISH_LINE,
-              speed: 0,
-              nitro: newNitro,
-              finished: true,
-              finishTime: Date.now() - gameState.startTime,
-            };
-          }
-
-          return {
-            ...racer,
-            speed: newSpeed,
-            nitro: newNitro,
-            position: Math.min(newPosition, FINISH_LINE),
-          };
-        });
-
-        // Check if race is finished
-        const finishedRacers = updatedRacers.filter(r => r.finished);
-        if (finishedRacers.length === updatedRacers.length || finishedRacers.some(r => !r.isBot)) {
-          const sortedByTime = [...finishedRacers].sort((a, b) => (a.finishTime || Infinity) - (b.finishTime || Infinity));
-          const winner = sortedByTime[0];
-          
-          if (winner && gameState.status === 'racing') {
-            setGameState(prev => ({
-              ...prev,
-              status: 'finished',
-              winner: winner.name,
-              elapsedTime: winner.finishTime || Date.now() - prev.startTime,
-            }));
-
-            const playerWon = !winner.isBot;
-            updateRaceStats(playerWon);
-            onRaceComplete?.(playerWon, winner.finishTime || 0);
-            
-            toast({
-              title: playerWon ? '🏆 Victory!' : '💨 Race Complete',
-              description: playerWon 
-                ? `You won in ${((winner.finishTime || 0) / 1000).toFixed(2)}s!`
-                : `${winner.name} won the race.`,
-            });
+          if (nitro && r.nitro > 0) {
+            r.speed += (r.stats.nitroBoost * 2.0) * dt; 
+            r.nitro = Math.max(0, r.nitro - (dt * 45));
+          } else {
+            r.nitro = Math.min(100, r.nitro + (dt * 4));
           }
         }
 
-        return updatedRacers;
+        r.position += (r.speed / 60) * dt * POSITION_MULTIPLIER;
+
+        if (r.position >= FINISH_LINE) {
+          r.position = 100;
+          r.finished = true;
+          r.finishTime = now - startTimeRef.current;
+          if (!winner) winner = r;
+        }
       });
 
-      setGameState(prev => ({
-        ...prev,
-        elapsedTime: Date.now() - prev.startTime,
-      }));
+      setTick(now);
 
-      gameLoopRef.current = requestAnimationFrame(updateGame);
-    };
-
-    gameLoopRef.current = requestAnimationFrame(updateGame);
-
-    return () => {
-      if (gameLoopRef.current) {
-        cancelAnimationFrame(gameLoopRef.current);
-      }
-    };
-  }, [gameState.status, gameState.startTime, isAccelerating, isBraking, isNitroActive, updateRaceStats, onRaceComplete, toast]);
-
-  // Keyboard controls - prevent default to stop page scrolling
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Prevent default for arrow keys and space to stop page scrolling
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
-        e.preventDefault();
-      }
-      
-      if (gameState.status !== 'racing') return;
-      
-      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
-        setIsAccelerating(true);
-      }
-      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-        setIsBraking(true);
-      }
-      if (e.key === ' ') {
-        setIsNitroActive(true);
+      if (winner) {
+        cancelAnimationFrame(gameLoopRef.current!);
+        const isPlayer = !winner.isBot;
+        updateRaceStats(isPlayer);
+        setWinnerData({ name: winner.name, isPlayer, time: winner.finishTime });
+        setStatus('finished');
+        if (onRaceComplete) onRaceComplete(isPlayer, winner.finishTime);
+      } else {
+        gameLoopRef.current = requestAnimationFrame(update);
       }
     };
 
-    const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
-        setIsAccelerating(false);
-      }
-      if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-        setIsBraking(false);
-      }
-      if (e.key === ' ') {
-        setIsNitroActive(false);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown, { passive: false });
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [gameState.status]);
-
-  const playerRacer = racers.find(r => !r.isBot);
-
-  if (!garage || !carStats) {
-    return (
-      <Card>
-        <CardContent className="pt-6 text-center">
-          <p className="text-muted-foreground">Loading your garage...</p>
-        </CardContent>
-      </Card>
-    );
-  }
+    gameLoopRef.current = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(gameLoopRef.current!);
+  }, [status, updateRaceStats, onRaceComplete]);
 
   return (
-    <div className="space-y-4">
-      {/* Race info header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="flex items-center gap-1">
-            {raceType === 'bot' ? <Bot className="w-4 h-4" /> : <Users className="w-4 h-4" />}
-            {raceType === 'bot' ? `vs Bots (${botDifficulty})` : 'Multiplayer'}
-          </Badge>
-          {gameState.status === 'racing' && (
-            <Badge className="flex items-center gap-1">
-              <Timer className="w-4 h-4" />
-              {(gameState.elapsedTime / 1000).toFixed(2)}s
-            </Badge>
-          )}
-        </div>
-        <div className="flex gap-2">
-          {gameState.status === 'idle' && racers.length > 0 && (
-            <Button onClick={startRace}>
-              <Play className="w-4 h-4 mr-2" />
-              Start Race
-            </Button>
-          )}
-          {gameState.status === 'finished' && (
-            <Button onClick={() => {
-              setIsInitialized(false);
-              setTimeout(() => initializeRace(), 100);
-            }}>
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Race Again
-            </Button>
-          )}
+    <div className="w-full max-w-4xl mx-auto space-y-4 p-4">
+      <div className="flex justify-between items-center px-2">
+        <Badge variant="outline" className="bg-slate-900 text-white border-slate-700 uppercase px-4 py-1">
+          Circuit: {botDifficulty}
+        </Badge>
+        <div className="bg-green-600 text-white font-mono px-4 py-1 rounded-md text-xl shadow-[0_0_15px_rgba(22,163,74,0.5)]">
+          {(displayTime / 1000).toFixed(2)}s
         </div>
       </div>
 
-      {/* Race track */}
-      {racers.length > 0 ? (
-        <RaceTrack racers={racers} gameState={gameState} />
-      ) : (
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
-            <p className="text-muted-foreground mt-2">Preparing race...</p>
-          </CardContent>
-        </Card>
-      )}
+      <div className="relative bg-[#222] rounded-3xl border-8 border-slate-800 shadow-2xl overflow-hidden min-h-[400px] flex flex-col justify-center">
+        
+        {/* TRACK LANES SYSTEM */}
+        <div className="absolute inset-0 flex flex-col py-4">
+          {racersRef.current.map((_, i) => (
+            <div 
+              key={`lane-${i}`} 
+              className={`flex-1 w-full border-b border-white/10 relative flex items-center ${i === 0 ? 'border-t border-white/10' : ''} bg-[#2a2a2a] shadow-inner`}
+            >
+              {/* Central Dash Markings */}
+              <div className="absolute top-1/2 left-0 right-0 h-[2px] border-t border-dashed border-white/5 -translate-y-1/2" />
+              
+              {/* Lane ID */}
+              <div className="absolute left-4 opacity-5 text-white font-black italic text-4xl select-none">
+                0{i + 1}
+              </div>
+            </div>
+          ))}
 
-      {/* Controls */}
-      {playerRacer && (
-        <Controls
-          onAccelerate={() => setIsAccelerating(true)}
-          onBrake={() => setIsBraking(true)}
-          onNitro={() => setIsNitroActive(true)}
-          nitroAmount={playerRacer.nitro}
-          maxNitro={playerRacer.maxNitro}
-          disabled={gameState.status !== 'racing'}
-          speed={playerRacer.speed}
-          maxSpeed={playerRacer.stats.speed}
-        />
-      )}
+          {/* F1 STYLE FINISH LINE GANTRY */}
+          <div className="absolute right-0 top-0 bottom-0 w-24 flex">
+             {/* Checkered pattern background */}
+             <div 
+              className="w-full h-full opacity-20"
+              style={{
+                backgroundImage: `radial-gradient(#fff 2px, transparent 2px), radial-gradient(#fff 2px, #000 2px)`,
+                backgroundSize: '16px 16px',
+                backgroundPosition: '0 0, 8px 8px'
+              }}
+             />
+             {/* The Finish Gantry Line */}
+             <div className="absolute right-12 top-0 bottom-0 w-1 bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]" />
+          </div>
+        </div>
+
+        {/* CARS LAYER */}
+        <div className="space-y-0 relative z-10 flex flex-col h-full py-4 min-h-[360px]">
+          {racersRef.current.map((r, idx) => (
+            <div key={r.id} className="flex-1 flex items-center relative">
+              <motion.div 
+                className="absolute flex items-center"
+                animate={{ left: `${r.position}%` }}
+                transition={{ type: 'tween', ease: 'linear', duration: 0.05 }}
+                style={{ x: r.position >= 100 ? '-100%' : '0' }}
+              >
+                <CarSprite 
+                    color={r.color} 
+                    nitroActive={r.nitro > 0 && r.speed > r.stats.speed * 1.1 && !r.finished} 
+                    isPlayer={!r.isBot} 
+                />
+                <div className={`absolute -top-6 left-0 px-2 py-0.5 rounded text-[10px] font-black uppercase whitespace-nowrap shadow-sm ${!r.isBot ? 'bg-green-500 text-black' : 'bg-black/60 text-white/50'}`}>
+                  {r.name}
+                </div>
+              </motion.div>
+            </div>
+          ))}
+        </div>
+
+        {/* F1 STYLE LIGHTS GAUNTRY */}
+        <AnimatePresence>
+          {status === 'countdown' && (
+            <motion.div 
+                initial={{ opacity: 0, y: -20 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0 }} 
+                className="absolute inset-x-0 top-6 flex flex-col items-center z-40"
+            >
+              <div className="bg-zinc-900 p-4 rounded-xl border-4 border-zinc-800 shadow-2xl flex gap-6">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex flex-col gap-2">
+                    <div className={`w-10 h-10 rounded-full border-4 border-black/40 transition-colors duration-200 ${lights >= i ? 'bg-red-600 shadow-[0_0_20px_rgba(220,38,38,0.8)]' : 'bg-zinc-800'}`} />
+                    <div className={`w-10 h-10 rounded-full border-4 border-black/40 transition-colors duration-200 ${lights >= i ? 'bg-red-600 shadow-[0_0_20px_rgba(220,38,38,0.8)]' : 'bg-zinc-800'}`} />
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Start Button Overlay */}
+        {status === 'idle' && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
+            <Button onClick={startRace} className="bg-white text-black hover:bg-green-500 hover:text-white text-2xl font-black px-12 py-8 rounded-xl transition-all shadow-2xl uppercase italic tracking-tighter">
+              Engage Engine
+            </Button>
+          </div>
+        )}
+
+        {/* Results Modal */}
+        <AnimatePresence>
+          {status === 'finished' && winnerData && (
+            <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="absolute inset-0 flex items-center justify-center bg-black/95 z-50 p-6">
+              <Card className={`w-full max-w-sm border-4 bg-slate-900 shadow-[0_0_50px_rgba(0,0,0,1)] ${winnerData.isPlayer ? 'border-green-500' : 'border-red-500'}`}>
+                <div className="p-8 text-center">
+                  <div className="mb-4">
+                    {winnerData.isPlayer ? <Trophy className="w-20 h-20 text-yellow-400 mx-auto" /> : <Frown className="w-20 h-20 text-red-500 mx-auto" />}
+                  </div>
+                  <h2 className="text-5xl font-black text-white italic mb-1 uppercase tracking-tighter">
+                    {winnerData.isPlayer ? 'Podium P1' : 'Rank P2'}
+                  </h2>
+                  <p className="text-slate-500 font-bold uppercase tracking-widest mb-6">{winnerData.name}</p>
+                  
+                  <div className="grid grid-cols-2 gap-4 mb-8">
+                    <div className="bg-slate-800 p-3 rounded-lg border border-white/5">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Lap Time</p>
+                      <p className="text-xl font-mono text-white">{(winnerData.time / 1000).toFixed(2)}s</p>
+                    </div>
+                    <div className="bg-slate-800 p-3 rounded-lg border border-white/5">
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter">Contract Pay</p>
+                      <p className="text-xl font-mono text-yellow-500">{winnerData.isPlayer ? '+$1,000' : '$0'}</p>
+                    </div>
+                  </div>
+
+                  <Button onClick={initializeRace} className="w-full bg-green-600 hover:bg-green-500 text-white font-black h-14 text-lg">
+                    <RotateCcw className="mr-2 h-5 w-5" /> RE-ENTER PIT
+                  </Button>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* TELEMETRY DASHBOARD */}
+      <Card className="bg-slate-900 border-slate-800 p-6 shadow-xl border-b-4 border-b-green-500">
+        <div className="grid grid-cols-3 gap-8 items-center">
+          <div className="text-left">
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1 italic">Speed Telemetry</p>
+            <div className="text-4xl font-black text-white italic leading-none">
+              {Math.round(racersRef.current.find(r => !r.isBot)?.speed || 0)} <span className="text-xs text-slate-600 not-italic uppercase">km/h</span>
+            </div>
+          </div>
+          
+          <div className="flex justify-center gap-6">
+             <div className={`p-4 rounded-2xl border-2 transition-all duration-75 ${controlsRef.current.up ? 'bg-green-500 border-green-400 text-black scale-90 shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'border-slate-800 text-slate-700'}`}>
+                <ChevronUp strokeWidth={4} />
+             </div>
+             <div className={`p-4 rounded-2xl border-2 transition-all duration-75 ${controlsRef.current.nitro ? 'bg-orange-500 border-orange-400 text-black scale-90 shadow-[0_0_20px_rgba(249,115,22,0.6)]' : 'border-slate-800 text-slate-700'}`}>
+                <Zap fill="currentColor" />
+             </div>
+          </div>
+
+          <div className="space-y-2">
+             <div className="flex justify-between text-[10px] font-black uppercase italic">
+                <span className="text-orange-500 tracking-tighter">Nitro Core Temp</span>
+                <span className="text-white">{Math.round(racersRef.current.find(r => !r.isBot)?.nitro || 0)}%</span>
+             </div>
+             <Progress 
+                value={racersRef.current.find(r => !r.isBot)?.nitro || 0} 
+                className="h-3 bg-slate-800" 
+                indicatorClassName={controlsRef.current.nitro ? 'bg-white' : 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]'}
+             />
+             <p className="text-[9px] text-slate-600 text-center font-bold uppercase tracking-widest">Hold Space for Boost</p>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 }
