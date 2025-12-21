@@ -231,7 +231,9 @@ export function RacingGame({ botDifficulty = 'medium', onRaceComplete }: any) {
           // Compose race result object
           const player = racersRef.current.find(r => !r.isBot);
           const bots = racersRef.current.filter(r => r.isBot);
-          const playerRank = [player, ...bots].sort((a, b) => (a.finishTime ?? 999999) - (b.finishTime ?? 999999)).findIndex(r => r.id === 'player') + 1;
+          // Build participants list from current racers (no undefined entries)
+          const participants = racersRef.current.slice().sort((a, b) => (a.finishTime ?? 999999) - (b.finishTime ?? 999999));
+          const playerRank = participants.findIndex(r => r.id === 'player') + 1;
           const coinsEarned = isPlayer && playerRank === 1 ? 50 : 10;
           const raceResult = {
             userId: user.uid,
