@@ -1,68 +1,37 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { spawn } from 'child_process';
-import path from 'path';
+import { ai } from '@/ai/genkit';
+import { z } from 'zod';
 
-function runPythonPredict(text: string): Promise<{ label?: string; classes?: string[]; probs?: number[]; error?: string }> {
-  return new Promise((resolve, reject) => {
-    const projectRoot = process.cwd();
-    const scriptPath = path.join(projectRoot, 'src', 'train', 'predict_difficulty.py');
+const DifficultySchema = z.object({
+  label: z.enum(['easy', 'medium', 'hard']),
+  confidence: z.number().min(0).max(1),
+});
 
-    const proc = spawn('python', [scriptPath, text], {
-      cwd: projectRoot,
-    });
+export type DifficultyResult = z.infer<typeof DifficultySchema>;
 
-    let stdout = '';
-    let stderr = '';
+export const predictDifficulty = ai.definePrompt(
+  {
+    name: 'predictDifficulty',
+    model: 'googleai/gemini-1.5-flash',
+    output: {
+      schema: DifficultySchema,
+    },
+    config: {
+      temperature: 0,
+    },
+  },
+  `
+You are an expert educational assessment system.
 
-    proc.stdout.on('data', chunk => {
-      stdout += chunk.toString();
-    });
+Classify the difficulty of the following question:
 
-    proc.stderr.on('data', chunk => {
-      stderr += chunk.toString();
-    });
+Difficulty levels:
+- easy: factual recall, definitions, single-step
+- medium: multi-step reasoning, multiple concepts
+- hard: abstract reasoning, algorithms, proofs, advanced math or CS
 
-    proc.on('error', err => {
-      reject(err);
-    });
+Return a confidence score between 0 and 1.
 
-    proc.on('close', code => {
-      if (code !== 0) {
-        return resolve({ error: stderr || `Python exited with code ${code}` });
-      }
-      try {
-        const parsed = JSON.parse(stdout.trim());
-        resolve(parsed);
-      } catch (e: any) {
-        resolve({ error: `Failed to parse Python output: ${e?.message || String(e)}` });
-      }
-    });
-  });
-}
-
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json().catch(() => null as any);
-    const text = body?.text;
-
-    if (!text || typeof text !== 'string') {
-      return NextResponse.json({ error: 'Missing "text" (string) in request body.' }, { status: 400 });
-    }
-
-    const result = await runPythonPredict(text);
-
-    if (result.error) {
-      console.error('predict_difficulty error:', result.error);
-      return NextResponse.json({ error: 'Difficulty prediction failed.' }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      label: result.label,
-      classes: result.classes,
-      probs: result.probs,
-    });
-  } catch (error: any) {
-    console.error('Difficulty API error:', error);
-    return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
-  }
-}
+Question:
+{{text}}
+`
+);
